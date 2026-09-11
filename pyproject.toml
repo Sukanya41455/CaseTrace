@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "casetrace"
+version = "0.1.0"
+description = "Typed discovery and deterministic replay for payment investigations"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "google-genai",
+    "jinja2",
+    "playwright",
+    "pydantic>=2,<3",
+    "python-multipart",
+    "typer",
+    "uvicorn",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx",
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
+[project.scripts]
+casetrace = "casetrace.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

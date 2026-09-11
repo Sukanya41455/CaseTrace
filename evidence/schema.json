@@ -1,0 +1,1689 @@
+{
+  "$defs": {
+    "AbsentPredicate": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "absent",
+          "default": "absent",
+          "title": "Kind",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_id"
+      ],
+      "title": "AbsentPredicate",
+      "type": "object"
+    },
+    "AccessibleRoleStrategy": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "accessible_role",
+          "default": "accessible_role",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/ValueRef"
+            }
+          ],
+          "title": "Name"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "name"
+      ],
+      "title": "AccessibleRoleStrategy",
+      "type": "object"
+    },
+    "AdjacentControlStrategy": {
+      "additionalProperties": false,
+      "properties": {
+        "control_role": {
+          "title": "Control Role",
+          "type": "string"
+        },
+        "kind": {
+          "const": "adjacent_control",
+          "default": "adjacent_control",
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/ValueRef"
+            }
+          ],
+          "title": "Label"
+        }
+      },
+      "required": [
+        "label",
+        "control_role"
+      ],
+      "title": "AdjacentControlStrategy",
+      "type": "object"
+    },
+    "AllPredicate": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "all",
+          "default": "all",
+          "title": "Kind",
+          "type": "string"
+        },
+        "predicates": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "minItems": 1,
+          "title": "Predicates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "predicates"
+      ],
+      "title": "AllPredicate",
+      "type": "object"
+    },
+    "AnyPredicate": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "any",
+          "default": "any",
+          "title": "Kind",
+          "type": "string"
+        },
+        "predicates": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "minItems": 1,
+          "title": "Predicates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "predicates"
+      ],
+      "title": "AnyPredicate",
+      "type": "object"
+    },
+    "AssertStep": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoint"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "kind": {
+          "const": "assert",
+          "default": "assert",
+          "title": "Kind",
+          "type": "string"
+        },
+        "predicate": {
+          "$ref": "#/$defs/Predicate"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "step_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Step Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "predicate",
+        "checks",
+        "checkpoint",
+        "provenance"
+      ],
+      "title": "AssertStep",
+      "type": "object"
+    },
+    "BranchCase": {
+      "additionalProperties": false,
+      "properties": {
+        "guard": {
+          "$ref": "#/$defs/Predicate"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "title": "Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "guard",
+        "steps"
+      ],
+      "title": "BranchCase",
+      "type": "object"
+    },
+    "BranchStep": {
+      "additionalProperties": false,
+      "properties": {
+        "cases": {
+          "items": {
+            "$ref": "#/$defs/BranchCase"
+          },
+          "minItems": 1,
+          "title": "Cases",
+          "type": "array"
+        },
+        "checkpoint": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoint"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "fallback_failure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FailureCode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "branch",
+          "default": "branch",
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "step_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Step Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "cases",
+        "checks",
+        "checkpoint",
+        "provenance"
+      ],
+      "title": "BranchStep",
+      "type": "object"
+    },
+    "CapabilityScope": {
+      "additionalProperties": false,
+      "properties": {
+        "currency": {
+          "const": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "direction": {
+          "const": "CREDIT",
+          "title": "Direction",
+          "type": "string"
+        },
+        "effect": {
+          "const": "read_only",
+          "title": "Effect",
+          "type": "string"
+        },
+        "max_date_window_days": {
+          "const": 31,
+          "title": "Max Date Window Days",
+          "type": "integer"
+        },
+        "sources": {
+          "items": {
+            "enum": [
+              "history",
+              "pending"
+            ],
+            "type": "string"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "direction",
+        "currency",
+        "sources",
+        "effect",
+        "max_date_window_days"
+      ],
+      "title": "CapabilityScope",
+      "type": "object"
+    },
+    "ClickStep": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoint"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "kind": {
+          "const": "click",
+          "default": "click",
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "step_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Step Id",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "target_id",
+        "checks",
+        "checkpoint",
+        "provenance"
+      ],
+      "title": "ClickStep",
+      "type": "object"
+    },
+    "CountOperator": {
+      "enum": [
+        "eq",
+        "ne",
+        "lt",
+        "lte",
+        "gt",
+        "gte"
+      ],
+      "title": "CountOperator",
+      "type": "string"
+    },
+    "CountPredicate": {
+      "additionalProperties": false,
+      "properties": {
+        "expected": {
+          "minimum": 0,
+          "title": "Expected",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "count",
+          "default": "count",
+          "title": "Kind",
+          "type": "string"
+        },
+        "operator": {
+          "$ref": "#/$defs/CountOperator"
+        },
+        "target_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_id",
+        "operator",
+        "expected"
+      ],
+      "title": "CountPredicate",
+      "type": "object"
+    },
+    "EqualsPredicate": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "equals",
+          "default": "equals",
+          "title": "Kind",
+          "type": "string"
+        },
+        "left": {
+          "$ref": "#/$defs/ValueRef"
+        },
+        "right": {
+          "$ref": "#/$defs/ValueRef"
+        }
+      },
+      "required": [
+        "left",
+        "right"
+      ],
+      "title": "EqualsPredicate",
+      "type": "object"
+    },
+    "ExecutionLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "action_timeout_seconds": {
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Action Timeout Seconds",
+          "type": "integer"
+        },
+        "active_timeout_seconds": {
+          "maximum": 300,
+          "minimum": 1,
+          "title": "Active Timeout Seconds",
+          "type": "integer"
+        },
+        "human_timeout_seconds": {
+          "maximum": 600,
+          "minimum": 1,
+          "title": "Human Timeout Seconds",
+          "type": "integer"
+        },
+        "max_accounts": {
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Max Accounts",
+          "type": "integer"
+        },
+        "max_interventions": {
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Max Interventions",
+          "type": "integer"
+        },
+        "max_pages_per_source": {
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Max Pages Per Source",
+          "type": "integer"
+        },
+        "max_retries": {
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Max Retries",
+          "type": "integer"
+        },
+        "max_rows_per_page": {
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Max Rows Per Page",
+          "type": "integer"
+        },
+        "max_ui_actions": {
+          "maximum": 200,
+          "minimum": 1,
+          "title": "Max Ui Actions",
+          "type": "integer"
+        },
+        "retry_backoff_ms": {
+          "items": {
+            "enum": [
+              250,
+              1000
+            ],
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "title": "Retry Backoff Ms",
+          "type": "array"
+        }
+      },
+      "required": [
+        "max_accounts",
+        "max_pages_per_source",
+        "max_rows_per_page",
+        "max_ui_actions",
+        "active_timeout_seconds",
+        "action_timeout_seconds",
+        "max_retries",
+        "retry_backoff_ms",
+        "max_interventions",
+        "human_timeout_seconds"
+      ],
+      "title": "ExecutionLimits",
+      "type": "object"
+    },
+    "FailureCode": {
+      "enum": [
+        "INVALID_INPUT",
+        "UNSUPPORTED_VERSION",
+        "UNSUPPORTED_SURFACE",
+        "POLICY_DENIED",
+        "ACCESS_DENIED",
+        "LOCATOR_AMBIGUOUS",
+        "CHECKPOINT_FAILED",
+        "SEARCH_LIMIT_EXCEEDED",
+        "TIMEOUT",
+        "INCONSISTENT_RECORD",
+        "UNKNOWN_STATE",
+        "MODEL_ERROR",
+        "MODEL_LIMIT",
+        "HANDOFF_TIMEOUT",
+        "SESSION_LOST",
+        "CANCELLED"
+      ],
+      "title": "FailureCode",
+      "type": "string"
+    },
+    "FillStep": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoint"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "kind": {
+          "const": "fill",
+          "default": "fill",
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "step_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Step Id",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Target Id",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/ValueRef"
+        }
+      },
+      "required": [
+        "step_id",
+        "target_id",
+        "value",
+        "checks",
+        "checkpoint",
+        "provenance"
+      ],
+      "title": "FillStep",
+      "type": "object"
+    },
+    "ForEachStep": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoint"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "collection": {
+          "$ref": "#/$defs/ValueRef"
+        },
+        "item_variable": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Item Variable",
+          "type": "string"
+        },
+        "kind": {
+          "const": "for_each",
+          "default": "for_each",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_items": {
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Max Items",
+          "type": "integer"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "step_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Step Id",
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "title": "Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "step_id",
+        "collection",
+        "item_variable",
+        "max_items",
+        "steps",
+        "checks",
+        "checkpoint",
+        "provenance"
+      ],
+      "title": "ForEachStep",
+      "type": "object"
+    },
+    "Handler": {
+      "additionalProperties": false,
+      "properties": {
+        "backoff_ms": {
+          "items": {
+            "enum": [
+              250,
+              1000
+            ],
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "title": "Backoff Ms",
+          "type": "array"
+        },
+        "detector": {
+          "$ref": "#/$defs/Predicate"
+        },
+        "disposition": {
+          "enum": [
+            "retry",
+            "handoff",
+            "fail"
+          ],
+          "title": "Disposition",
+          "type": "string"
+        },
+        "failure_code": {
+          "$ref": "#/$defs/FailureCode"
+        },
+        "handler_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Handler Id",
+          "type": "string"
+        },
+        "max_attempts": {
+          "default": 0,
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Max Attempts",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "handler_id",
+        "detector",
+        "disposition",
+        "failure_code"
+      ],
+      "title": "Handler",
+      "type": "object"
+    },
+    "InputContract": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "PaymentQuery",
+          "default": "PaymentQuery",
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "title": "InputContract",
+      "type": "object"
+    },
+    "InputValue": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "input",
+          "default": "input",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "enum": [
+            "member_id",
+            "amount",
+            "currency",
+            "date_from",
+            "date_to",
+            "reference"
+          ],
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "InputValue",
+      "type": "object"
+    },
+    "LiteralValue": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "literal",
+          "default": "literal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "sensitive": {
+          "const": false,
+          "default": false,
+          "title": "Sensitive",
+          "type": "boolean"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "LiteralValue",
+      "type": "object"
+    },
+    "NavigateStep": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoint"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "kind": {
+          "const": "navigate",
+          "default": "navigate",
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "step_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Step Id",
+          "type": "string"
+        },
+        "url": {
+          "$ref": "#/$defs/ValueRef"
+        }
+      },
+      "required": [
+        "step_id",
+        "url",
+        "checks",
+        "checkpoint",
+        "provenance"
+      ],
+      "title": "NavigateStep",
+      "type": "object"
+    },
+    "OutputContract": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "RunResult",
+          "default": "RunResult",
+          "title": "Name",
+          "type": "string"
+        },
+        "result_kinds": {
+          "items": {
+            "enum": [
+              "success",
+              "business_outcome",
+              "failure"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Result Kinds",
+          "type": "array"
+        },
+        "version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result_kinds"
+      ],
+      "title": "OutputContract",
+      "type": "object"
+    },
+    "PaginateStep": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoint"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "kind": {
+          "const": "paginate",
+          "default": "paginate",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_pages": {
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Max Pages",
+          "type": "integer"
+        },
+        "next_target_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Next Target Id",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "step_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Step Id",
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "until": {
+          "$ref": "#/$defs/Predicate"
+        }
+      },
+      "required": [
+        "step_id",
+        "next_target_id",
+        "until",
+        "max_pages",
+        "steps",
+        "checks",
+        "checkpoint",
+        "provenance"
+      ],
+      "title": "PaginateStep",
+      "type": "object"
+    },
+    "Predicate": {
+      "discriminator": {
+        "mapping": {
+          "absent": "#/$defs/AbsentPredicate",
+          "all": "#/$defs/AllPredicate",
+          "any": "#/$defs/AnyPredicate",
+          "count": "#/$defs/CountPredicate",
+          "equals": "#/$defs/EqualsPredicate",
+          "visible": "#/$defs/VisiblePredicate"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/VisiblePredicate"
+        },
+        {
+          "$ref": "#/$defs/AbsentPredicate"
+        },
+        {
+          "$ref": "#/$defs/EqualsPredicate"
+        },
+        {
+          "$ref": "#/$defs/CountPredicate"
+        },
+        {
+          "$ref": "#/$defs/AllPredicate"
+        },
+        {
+          "$ref": "#/$defs/AnyPredicate"
+        }
+      ]
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "event_ids": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[\\w.-]+$",
+            "type": "string"
+          },
+          "title": "Event Ids",
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "observed",
+            "generalized",
+            "authored"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "validation_scenario": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Validation Scenario"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "ReadParser": {
+      "enum": [
+        "text",
+        "exact_money",
+        "date",
+        "enum",
+        "table_rows"
+      ],
+      "title": "ReadParser",
+      "type": "string"
+    },
+    "ReadStep": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoint"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "kind": {
+          "const": "read",
+          "default": "read",
+          "title": "Kind",
+          "type": "string"
+        },
+        "parser": {
+          "$ref": "#/$defs/ReadParser"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "step_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Step Id",
+          "type": "string"
+        },
+        "store_as": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Store As",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "target_id",
+        "parser",
+        "store_as",
+        "checks",
+        "checkpoint",
+        "provenance"
+      ],
+      "title": "ReadStep",
+      "type": "object"
+    },
+    "ReturnStep": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checkpoint"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/Predicate"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "kind": {
+          "const": "return",
+          "default": "return",
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "result": {
+          "$ref": "#/$defs/ValueRef"
+        },
+        "result_kind": {
+          "enum": [
+            "success",
+            "business_outcome",
+            "failure"
+          ],
+          "title": "Result Kind",
+          "type": "string"
+        },
+        "step_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Step Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "result_kind",
+        "result",
+        "checks",
+        "checkpoint",
+        "provenance"
+      ],
+      "title": "ReturnStep",
+      "type": "object"
+    },
+    "ScenarioResult": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "scenario": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Scenario",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario",
+        "passed",
+        "evidence_refs"
+      ],
+      "title": "ScenarioResult",
+      "type": "object"
+    },
+    "Step": {
+      "discriminator": {
+        "mapping": {
+          "assert": "#/$defs/AssertStep",
+          "branch": "#/$defs/BranchStep",
+          "click": "#/$defs/ClickStep",
+          "fill": "#/$defs/FillStep",
+          "for_each": "#/$defs/ForEachStep",
+          "navigate": "#/$defs/NavigateStep",
+          "paginate": "#/$defs/PaginateStep",
+          "read": "#/$defs/ReadStep",
+          "return": "#/$defs/ReturnStep"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/NavigateStep"
+        },
+        {
+          "$ref": "#/$defs/FillStep"
+        },
+        {
+          "$ref": "#/$defs/ClickStep"
+        },
+        {
+          "$ref": "#/$defs/ReadStep"
+        },
+        {
+          "$ref": "#/$defs/AssertStep"
+        },
+        {
+          "$ref": "#/$defs/BranchStep"
+        },
+        {
+          "$ref": "#/$defs/ForEachStep"
+        },
+        {
+          "$ref": "#/$defs/PaginateStep"
+        },
+        {
+          "$ref": "#/$defs/ReturnStep"
+        }
+      ]
+    },
+    "TableRelationStrategy": {
+      "additionalProperties": false,
+      "properties": {
+        "control_role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Control Role"
+        },
+        "header": {
+          "title": "Header",
+          "type": "string"
+        },
+        "kind": {
+          "const": "table_relation",
+          "default": "table_relation",
+          "title": "Kind",
+          "type": "string"
+        },
+        "row_value": {
+          "$ref": "#/$defs/ValueRef"
+        }
+      },
+      "required": [
+        "header",
+        "row_value"
+      ],
+      "title": "TableRelationStrategy",
+      "type": "object"
+    },
+    "TargetSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Anchor"
+        },
+        "cardinality": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Cardinality",
+          "type": "integer"
+        },
+        "container": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Container"
+        },
+        "frame_path": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Frame Path",
+          "type": "array"
+        },
+        "strategies": {
+          "items": {
+            "$ref": "#/$defs/TargetStrategy"
+          },
+          "minItems": 1,
+          "title": "Strategies",
+          "type": "array"
+        },
+        "surface_kind": {
+          "const": "web",
+          "title": "Surface Kind",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_id",
+        "surface_kind",
+        "strategies"
+      ],
+      "title": "TargetSpec",
+      "type": "object"
+    },
+    "TargetStrategy": {
+      "discriminator": {
+        "mapping": {
+          "accessible_role": "#/$defs/AccessibleRoleStrategy",
+          "adjacent_control": "#/$defs/AdjacentControlStrategy",
+          "table_relation": "#/$defs/TableRelationStrategy",
+          "visible_text": "#/$defs/VisibleTextStrategy"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AccessibleRoleStrategy"
+        },
+        {
+          "$ref": "#/$defs/VisibleTextStrategy"
+        },
+        {
+          "$ref": "#/$defs/AdjacentControlStrategy"
+        },
+        {
+          "$ref": "#/$defs/TableRelationStrategy"
+        }
+      ]
+    },
+    "ValidationReport": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Artifact Digest",
+          "type": "string"
+        },
+        "binding_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Binding Digest",
+          "type": "string"
+        },
+        "scenario_results": {
+          "items": {
+            "$ref": "#/$defs/ScenarioResult"
+          },
+          "minItems": 1,
+          "title": "Scenario Results",
+          "type": "array"
+        },
+        "validated_at": {
+          "format": "date-time",
+          "title": "Validated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_digest",
+        "binding_digest",
+        "scenario_results",
+        "validated_at"
+      ],
+      "title": "ValidationReport",
+      "type": "object"
+    },
+    "ValueRef": {
+      "discriminator": {
+        "mapping": {
+          "input": "#/$defs/InputValue",
+          "literal": "#/$defs/LiteralValue",
+          "variable": "#/$defs/VariableValue"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/LiteralValue"
+        },
+        {
+          "$ref": "#/$defs/InputValue"
+        },
+        {
+          "$ref": "#/$defs/VariableValue"
+        }
+      ]
+    },
+    "VariableValue": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "kind": {
+          "const": "variable",
+          "default": "variable",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "VariableValue",
+      "type": "object"
+    },
+    "VisiblePredicate": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "visible",
+          "default": "visible",
+          "title": "Kind",
+          "type": "string"
+        },
+        "target_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_id"
+      ],
+      "title": "VisiblePredicate",
+      "type": "object"
+    },
+    "VisibleTextStrategy": {
+      "additionalProperties": false,
+      "properties": {
+        "exact": {
+          "default": true,
+          "title": "Exact",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "visible_text",
+          "default": "visible_text",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/ValueRef"
+            }
+          ],
+          "title": "Text"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "VisibleTextStrategy",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "capability_id": {
+      "const": "trace_incoming_payment",
+      "title": "Capability Id",
+      "type": "string"
+    },
+    "capability_version": {
+      "const": "0.1.0",
+      "title": "Capability Version",
+      "type": "string"
+    },
+    "handlers": {
+      "items": {
+        "$ref": "#/$defs/Handler"
+      },
+      "title": "Handlers",
+      "type": "array"
+    },
+    "input_schema": {
+      "$ref": "#/$defs/InputContract"
+    },
+    "limits": {
+      "$ref": "#/$defs/ExecutionLimits"
+    },
+    "output_schema": {
+      "$ref": "#/$defs/OutputContract"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "required_surface_features": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Required Surface Features",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/CapabilityScope"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/Step"
+      },
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    },
+    "supported_app_versions": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Supported App Versions",
+      "type": "array"
+    },
+    "targets": {
+      "items": {
+        "$ref": "#/$defs/TargetSpec"
+      },
+      "minItems": 1,
+      "title": "Targets",
+      "type": "array"
+    },
+    "validation": {
+      "items": {
+        "$ref": "#/$defs/ValidationReport"
+      },
+      "title": "Validation",
+      "type": "array"
+    },
+    "vendor": {
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Vendor",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "capability_id",
+    "capability_version",
+    "vendor",
+    "supported_app_versions",
+    "required_surface_features",
+    "input_schema",
+    "output_schema",
+    "scope",
+    "targets",
+    "steps",
+    "handlers",
+    "limits",
+    "provenance"
+  ],
+  "title": "Capability",
+  "type": "object"
+}
