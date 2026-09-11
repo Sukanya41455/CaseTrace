@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Northstar Synthetic Bank</title>
+    <style>
+      :root { font-family: Tahoma, Arial, sans-serif; color: #142133; background: #d5dbe2; }
+      body { margin: 0; min-width: 780px; }
+      header { color: white; background: #17385f; border-bottom: 4px solid #c9a227; padding: 12px 18px; }
+      header strong { font-size: 20px; letter-spacing: .03em; }
+      header span { float: right; font-size: 12px; padding-top: 5px; }
+      .layout { display: grid; grid-template-columns: 185px 1fr; height: calc(100vh - 53px); }
+      nav { background: #e8edf1; border-right: 1px solid #9ba8b4; padding: 18px 12px; }
+      nav h2 { font-size: 13px; margin: 0 0 12px; text-transform: uppercase; }
+      nav a { display: block; background: #fff; border: 1px solid #8c9aa7; color: #153c67; margin-bottom: 8px; padding: 8px; }
+      nav p { color: #586775; font-size: 11px; line-height: 1.4; margin-top: 25px; }
+      nav .version { border-top: 1px solid #aeb8c1; padding-top: 10px; }
+      iframe { background: white; border: 0; height: 100%; width: 100%; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Northstar Synthetic Bank</strong>
+      <span>Demo operator · inquiry workspace</span>
+    </header>
+    <div class="layout">
+      <nav aria-label="Persistent navigation">
+        <h2>Customer service</h2>
+        <a href="/bank/members" target="content">Member search</a>
+        <p>Training environment<br>All people, accounts, and payments are synthetic.</p>
+        <p class="version">Vendor: Northstar Synthetic Bank<br>Application version: 2026.09</p>
+      </nav>
+      <iframe name="content" title="Bank workspace" src="/bank/members"></iframe>
+    </div>
+  </body>
+</html>

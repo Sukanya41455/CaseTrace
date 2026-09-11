@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Member search</title>
+    <style>
+      body { color: #1d2731; font: 14px Tahoma, Arial, sans-serif; margin: 20px 24px; }
+      h1 { color: #17385f; font-size: 22px; border-bottom: 2px solid #9aa8b6; padding-bottom: 7px; }
+      .notice { background: #fff4cc; border: 1px solid #c8a84b; margin: 12px 0; padding: 9px; }
+      .error { background: #f9dddd; border-color: #b74b4b; }
+      table { border-collapse: collapse; margin-top: 12px; min-width: 650px; width: 90%; }
+      th, td { border: 1px solid #909ba5; padding: 8px 10px; text-align: left; }
+      th { background: #dbe4ec; color: #17385f; }
+      label { display: block; font-weight: bold; margin-bottom: 5px; }
+      input[type=text] { border: 1px solid #687581; padding: 6px; width: 220px; }
+      button, .action { background: #e7e7e7; border: 1px solid #687581; color: #132d4b; cursor: pointer; display: inline-block; padding: 5px 12px; }
+      .search { margin-top: 8px; }
+      .summary { background: #edf3f7; border: 1px solid #9aa8b6; padding: 8px; }
+      form.inline { display: inline; }
+    </style>
+  </head>
+  <body>
+    <h1>Member search</h1>
+    {% if message %}<p class="notice error" role="alert">{{ message }}</p>{% endif %}
+    {% if stale_identity %}
+      <p class="notice" role="status">Stale member scenario: displayed identity does not match the request.</p>
+    {% endif %}
+
+    {% if mode == "search" or mode == "missing" %}
+      <form method="post" action="/bank/members/search">
+        <label for="member-id">Member ID</label>
+        <input id="member-id" name="member_id" type="text" inputmode="numeric" value="{{ entered_member_id or requested_member_id or '' }}">
+        <div><button class="search" type="submit">Search</button></div>
+      </form>
+    {% endif %}
+
+    {% if mode == "summary" %}
+      <p class="summary"><strong>Member ID:</strong> {{ displayed_member_id }}</p>
+      <h2>Member {{ displayed_member_id }}</h2>
+      <h3>Deposit accounts</h3>
+      {% if accounts %}
+        <p>{{ accounts|length }} deposit accounts</p>
+        <table aria-label="Deposit accounts">
+          <thead><tr><th>Account ID</th><th>Product</th><th>Activity</th><th>Payments</th></tr></thead>
+          <tbody>
+            {% for account in accounts %}
+              <tr>
+                <td>{{ account.account_id }}</td>
+                <td>{{ account.product }}</td>
+                <td><a class="action" href="/bank/members/{{ requested_member_id }}/accounts/{{ account.account_id }}/activity?source=history">Open</a></td>
+                <td>
+                  <form class="inline" method="post" action="/bank/members/{{ requested_member_id }}/accounts/{{ account.account_id }}/transfer">
+                    <button type="submit">Transfer funds</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="notice">No deposit accounts</p>
+      {% endif %}
+      <p aria-live="polite">Transfer attempts: {{ transfer_attempts }}</p>
+    {% endif %}
+  </body>
+</html>

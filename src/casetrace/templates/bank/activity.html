@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Account activity</title>
+    <style>
+      body { color: #1d2731; font: 13px Tahoma, Arial, sans-serif; margin: 18px 22px; }
+      h1 { color: #17385f; font-size: 21px; border-bottom: 2px solid #9aa8b6; padding-bottom: 6px; }
+      nav a, .pager a { background: #e6e9ec; border: 1px solid #7b8995; color: #17385f; display: inline-block; margin: 0 5px 8px 0; padding: 6px 12px; }
+      nav a[aria-current=page] { background: #17385f; color: white; }
+      table { border-collapse: collapse; margin: 10px 0; width: 100%; }
+      th, td { border: 1px solid #909ba5; padding: 7px 8px; text-align: left; }
+      th { background: #dbe4ec; color: #17385f; }
+      .context { background: #edf3f7; border: 1px solid #9aa8b6; }
+      .filters { max-width: 820px; }
+      .filters th { width: 115px; }
+      input, select { border: 1px solid #687581; padding: 5px; width: 180px; }
+      button, .button { background: #e7e7e7; border: 1px solid #687581; color: #132d4b; padding: 5px 11px; }
+      .notice { background: #fff4cc; border: 1px solid #c8a84b; padding: 10px; }
+      .error { background: #f9dddd; border-color: #b74b4b; }
+      dialog { border: 3px double #6e7882; box-shadow: 4px 4px 0 #888; position: static; }
+      .pager span { color: #6a727a; padding: 6px 12px; }
+    </style>
+  </head>
+  <body>
+    {% if condition %}
+      {% if unknown_dialog %}
+        <dialog open aria-labelledby="dialog-heading">
+          <h1 id="dialog-heading">{{ condition }}</h1>
+          <p>The legacy host returned an unrecognized prompt. Contact support.</p>
+          <button type="button">Continue</button>
+        </dialog>
+      {% else %}
+        <h1>Loading account activity</h1>
+        <p class="notice error" role="alert">{{ condition }}</p>
+      {% endif %}
+    {% else %}
+      <h1>Account activity</h1>
+      {% if slowed %}<p class="notice" role="status">Temporary slowdown recovered</p>{% endif %}
+      <table class="context" aria-label="Verified account context">
+        <tr><th>Member ID</th><td>{{ member_id }}</td><th>Account ID</th><td>{{ account_id }}</td></tr>
+        <tr><th>Activity source</th><td colspan="3">{{ source|capitalize }}</td></tr>
+      </table>
+
+      <nav aria-label="Activity sources">
+        <a href="/bank/members/{{ member_id }}/accounts/{{ account_id }}/activity?source=history" {% if source == 'history' %}aria-current="page"{% endif %}>History</a>
+        <a href="/bank/members/{{ member_id }}/accounts/{{ account_id }}/activity?source=pending" {% if source == 'pending' %}aria-current="page"{% endif %}>Pending</a>
+      </nav>
+
+      <form method="get" action="/bank/members/{{ member_id }}/accounts/{{ account_id }}/activity">
+        <table class="filters" aria-label="Activity filters">
+          <caption><strong>Filters</strong></caption>
+          <tr>
+            <th>Activity source</th>
+            <td><select name="source" aria-label="Activity source"><option value="history" {% if source == 'history' %}selected{% endif %}>History</option><option value="pending" {% if source == 'pending' %}selected{% endif %}>Pending</option></select></td>
+            <th><label for="amount">Amount</label></th>
+            <td><input id="amount" name="amount" type="text" value="{{ filters.amount }}"></td>
+          </tr>
+          <tr>
+            <th>Start date</th><td><input name="date_from" type="date" value="{{ filters.date_from }}"></td>
+            <th>End date</th><td><input name="date_to" type="date" value="{{ filters.date_to }}"></td>
+          </tr>
+          <tr>
+            <th>Currency</th><td><select name="currency" aria-label="Currency"><option value="">Any</option><option value="USD" {% if filters.currency == 'USD' %}selected{% endif %}>USD</option><option value="EUR" {% if filters.currency == 'EUR' %}selected{% endif %}>EUR</option></select></td>
+            <th>Direction</th><td><select name="direction" aria-label="Direction"><option value="">Any</option><option value="CREDIT" {% if filters.direction == 'CREDIT' %}selected{% endif %}>Credit</option><option value="DEBIT" {% if filters.direction == 'DEBIT' %}selected{% endif %}>Debit</option></select></td>
+          </tr>
+          <tr><th>Reference</th><td><input name="reference" type="text" value="{{ filters.reference }}"></td><td colspan="2"><button type="submit">Apply filters</button></td></tr>
+        </table>
+      </form>
+
+      {% if filters_applied %}
+        <p><strong>Applied filters</strong>: Start date {{ filters.date_from or 'Any' }}; End date {{ filters.date_to or 'Any' }}; Amount {{ filters.amount or 'Any' }}; Currency {{ filters.currency or 'Any' }}; Direction {{ filters.direction or 'Any' }}; Reference {{ filters.reference or 'Any' }}</p>
+      {% endif %}
+
+      <h2>{{ source|capitalize }} activity</h2>
+      <p>Page {{ page }} of {{ page_count }}</p>
+      <table aria-label="{{ source|capitalize }} activity">
+        <thead><tr><th>Direction</th><th>Amount</th><th>Currency</th><th>Transaction date</th><th>Reference</th><th>Status</th><th>Description</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.direction }}</td><td>{{ row.amount }}</td><td>{{ row.currency }}</td><td>{{ row.transaction_date }}</td><td>{{ row.reference }}</td><td>{{ row.status }}</td><td>{{ row.description }}</td>
+              <td><a class="button" href="/bank/members/{{ member_id }}/accounts/{{ account_id }}/transactions/{{ row.reference }}?source={{ source }}">View</a></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="8">No activity on this page</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="pager" aria-label="Pagination">
+        {% if previous_url %}<a href="{{ previous_url }}">Previous</a>{% else %}<span aria-disabled="true">Previous</span>{% endif %}
+        {% if next_url %}<a href="{{ next_url }}">Next</a>{% else %}<span aria-disabled="true">Next</span>{% endif %}
+      </div>
+      <p><a href="/bank/members/{{ member_id }}">Back to member</a></p>
+    {% endif %}
+  </body>
+</html>

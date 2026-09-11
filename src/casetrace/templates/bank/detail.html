@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Transaction details</title>
+    <style>
+      body { color: #1d2731; font: 14px Tahoma, Arial, sans-serif; margin: 20px 24px; }
+      h1 { color: #17385f; border-bottom: 2px solid #9aa8b6; font-size: 22px; padding-bottom: 7px; }
+      table { border-collapse: collapse; min-width: 580px; }
+      th, td { border: 1px solid #909ba5; padding: 8px 11px; text-align: left; }
+      th { background: #dbe4ec; color: #17385f; width: 180px; }
+      .error { background: #f9dddd; border: 1px solid #b74b4b; padding: 10px; }
+    </style>
+  </head>
+  <body>
+    <h1>Transaction details</h1>
+    {% if transaction %}
+      <table aria-label="Transaction details">
+        <tr><th>Member ID</th><td>{{ transaction.member_id }}</td></tr>
+        <tr><th>Account ID</th><td>{{ transaction.account_id }}</td></tr>
+        <tr><th>Transaction reference</th><td>{{ transaction.reference }}</td></tr>
+        <tr><th>Direction</th><td>{{ transaction.direction }}</td></tr>
+        <tr><th>Amount</th><td>{{ transaction.amount }}</td></tr>
+        <tr><th>Currency</th><td>{{ transaction.currency }}</td></tr>
+        <tr><th>Transaction date</th><td>{{ transaction.transaction_date }}</td></tr>
+        <tr><th>Displayed status</th><td>{{ transaction.status }}</td></tr>
+        <tr><th>Activity source</th><td>{{ transaction.source|capitalize }}</td></tr>
+        <tr><th>Description</th><td>{{ transaction.description }}</td></tr>
+      </table>
+      <p><a href="/bank/members/{{ transaction.member_id }}/accounts/{{ transaction.account_id }}/activity?source={{ transaction.source }}">Back to activity</a></p>
+    {% else %}
+      <p class="error" role="alert">{{ message }}</p>
+    {% endif %}
+  </body>
+</html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Demo sign in</title>
+    <style>
+      body { color: #1d2731; font: 14px Tahoma, Arial, sans-serif; margin: 24px; }
+      h1 { color: #17385f; border-bottom: 2px solid #9aa8b6; font-size: 22px; padding-bottom: 7px; }
+      .panel { background: #edf3f7; border: 1px solid #9aa8b6; padding: 16px; width: 380px; }
+      label { display: block; font-weight: bold; margin-top: 10px; }
+      input { border: 1px solid #687581; padding: 6px; width: 250px; }
+      button { margin-top: 14px; padding: 6px 14px; }
+      .error { background: #f9dddd; border: 1px solid #b74b4b; padding: 8px; }
+      .hint { color: #52616e; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Demo sign in</h1>
+    {% if message %}<p class="error" role="alert">{{ message }}</p>{% endif %}
+    <div class="panel">
+      <form method="post" action="/bank/login">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" autocomplete="username" value="{{ username or '' }}">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password">
+        <button type="submit">Sign in</button>
+      </form>
+      <p class="hint">Demo credentials: demo-operator / fixture-passphrase</p>
+    </div>
+  </body>
+</html>

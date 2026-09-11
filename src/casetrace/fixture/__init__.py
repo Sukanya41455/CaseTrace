@@ -1,0 +1,1 @@
+"""Synthetic bank fixture package."""
