@@ -1,0 +1,20 @@
+.env
+.env.*
+!.env.example
+.venv/
+.tools/
+.uv-cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+runs/
+.browser-cache/
+.browser-profiles/
+.docx-review/
+.superpowers/
+.worktrees/
+AComputer-Use Automation System.docx
