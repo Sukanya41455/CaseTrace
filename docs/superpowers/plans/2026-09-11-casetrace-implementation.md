@@ -6,7 +6,7 @@
 
 **Architecture:** A Python runner owns one Playwright browser session and a small operator endpoint. A separate local fixture process serves the legacy banking UI. A typed JSON artifact joins discovery to replay; shared policy, surface, session, and evidence code enforce the same execution rules in both paths.
 
-**Tech Stack:** Python 3.12+, async Playwright/Chromium, Pydantic 2, FastAPI/Jinja, Typer, OpenAI Python SDK for discovery only, pytest/pytest-asyncio, Ruff, and uv with a committed lockfile. Use [uv's project/lockfile workflow](https://docs.astral.sh/uv/guides/projects/) for reproducible setup.
+**Tech Stack:** Python 3.12+, async Playwright/Chromium, Pydantic 2, FastAPI/Jinja, Typer, Google Gen AI Python SDK for discovery only, pytest/pytest-asyncio, Ruff, and uv with a committed lockfile. Use [uv's project/lockfile workflow](https://docs.astral.sh/uv/guides/projects/) for reproducible setup.
 
 **Spec:** `docs/superpowers/specs/2026-09-11-casetrace-design.md`. Read it together with the local source brief, `AComputer-Use Automation System.docx`, before execution.
 
@@ -76,7 +76,7 @@ Concrete schema definitions should use Pydantic tagged unions and forbidden extr
 
 **Produces:** `PaymentQuery`, the remaining shared models, `Capability.model_json_schema()`, and CLI help/schema export. A working offline test command.
 
-- [ ] Create a setuptools-based Python package with `casetrace = "casetrace.cli:app"`, Python `>=3.12`, and dependencies pydantic `>=2,<3`, playwright, fastapi, uvicorn, jinja2, python-multipart, typer, and openai. Dev dependencies: pytest, pytest-asyncio, httpx, Ruff. Resolve exact versions into `uv.lock`; do not guess the newest versions in prose. Add `.venv`, `.env`, caches, temporary run output, browser profiles, and the local source DOCX to `.gitignore`. Keep sanitized `evidence/` trackable.
+- [ ] Create a setuptools-based Python package with `casetrace = "casetrace.cli:app"`, Python `>=3.12`, and dependencies pydantic `>=2,<3`, playwright, fastapi, uvicorn, jinja2, python-multipart, typer, and google-genai. Dev dependencies: pytest, pytest-asyncio, httpx, Ruff. Resolve exact versions into `uv.lock`; do not guess the newest versions in prose. Add `.venv`, `.env`, caches, temporary run output, browser profiles, and the local source DOCX to `.gitignore`. Keep sanitized `evidence/` trackable.
 - [ ] Add a `make_query(**changes)` test fixture returning a validated query from the synthetic values below, then write the contract regression tests before validators.
 
 ```python
@@ -198,8 +198,8 @@ def test_persisted_events_omit_canaries(evidence_harness):
 
 **Produces:** `async discover(goal, args, surface, session, provider, evidence) -> Capability`; `compile_candidate(recording, proposal, bindings) -> Capability`; `doctor --live-model`; `discover` CLI. `ModelProvider.decide(observation, history, tools)` returns a typed tool proposal and brief purpose summary.
 
-- [ ] Set up the user's API account privately following the [official quickstart](https://developers.openai.com/api/docs/quickstart). The local `.env` contains `OPENAI_API_KEY` and `CASETRACE_MODEL`; neither is printed. The model ID is required configuration, must support image/text input and function calling, and is verified by the live doctor request. The example file documents variable names without a real key. If access is unavailable, continue Tasks 5-7 but leave the mandatory live-evidence acceptance item visibly incomplete.
-- [ ] Use the OpenAI Docs skill during execution and recheck the API before coding the adapter. Implement one provider using Responses custom function tools, strict schemas, and serialized tool execution. [Official function-calling guidance](https://developers.openai.com/api/docs/guides/function-calling) requires strict object schemas to forbid extra properties and represent optional values as nullable required fields. Handle refusal, invalid tool proposals, provider failure, and exhausted budgets explicitly. Do not log private model reasoning.
+- [ ] Set up the user's API account privately following the [official quickstart](https://ai.google.dev/gemini-api/docs/quickstart). The local `.env` contains `GEMINI_API_KEY` and `CASETRACE_MODEL`; neither is printed. The model ID is required configuration, must support image/text input and function calling, and is verified by the live doctor request. The example file documents variable names without a real key. If access is unavailable, continue Tasks 5-7 but leave the mandatory live-evidence acceptance item visibly incomplete.
+- [ ] Recheck the official Gemini API and Google Gen AI SDK documentation before coding the adapter. Implement one provider using Gemini function declarations, application-side strict Pydantic validation, and serialized tool execution. Disable SDK automatic function execution; the guarded runner executes each validated proposal. [Official SDK documentation](https://googleapis.github.io/python-genai/) describes manual function calling. Provider schemas must use supported JSON Schema features; application contracts still reject extra properties. Handle refusal, invalid tool proposals, provider failure, and exhausted budgets explicitly. Do not log private model reasoning.
 - [ ] Write offline tests using a scripted `FakeProvider` whose `.calls` counts requests and `.decide` returns prescribed tool proposals. Label these as tests, never as live discovery evidence.
 
 ```python

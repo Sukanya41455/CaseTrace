@@ -1,0 +1,57 @@
+{
+  "tenant_bindings": {
+    "tenant_id": "northstar-synthetic",
+    "vendor": "Northstar Synthetic Bank",
+    "origin": "{tenant_origin}",
+    "app_version": "2026.09",
+    "timezone": "America/Chicago",
+    "label_aliases": {
+      "member_id": ["Member ID"],
+      "transaction_reference": ["Reference", "Transaction reference"]
+    },
+    "frame_bindings": {
+      "workspace": ["Bank workspace"]
+    },
+    "privacy_mappings": {
+      "member_id": "member_alias",
+      "account_id": "account_alias",
+      "reference": "reference_alias"
+    }
+  },
+  "policy": {
+    "allowed_origins": ["{tenant_origin}"],
+    "allowed_routes": [
+      {"path": "/", "methods": ["GET"], "effect": "read_only"},
+      {"path": "/bank/members", "methods": ["GET"], "effect": "read_only"},
+      {"path": "/bank/members/search", "methods": ["POST"], "effect": "read_only"},
+      {"path": "/bank/members/{member_id}", "methods": ["GET"], "effect": "read_only"},
+      {"path": "/bank/members/{member_id}/accounts/{account_id}/activity", "methods": ["GET"], "effect": "read_only"},
+      {"path": "/bank/members/{member_id}/accounts/{account_id}/transactions/{reference}", "methods": ["GET"], "effect": "read_only"},
+      {"path": "/bank/login", "methods": ["GET", "POST"], "effect": "read_only"}
+    ],
+    "allowed_control_meanings": [
+      "member.search.member_id",
+      "member.search.submit",
+      "member.account.open",
+      "activity.source",
+      "activity.filter.date_from",
+      "activity.filter.date_to",
+      "activity.filter.amount",
+      "activity.filter.currency",
+      "activity.filter.direction",
+      "activity.filter.reference",
+      "activity.filter.submit",
+      "activity.pagination.next",
+      "activity.pagination.previous",
+      "activity.transaction.view",
+      "navigation.back"
+    ],
+    "denied_control_meanings": [
+      "financial.transfer",
+      "authentication.username",
+      "authentication.password",
+      "authentication.submit",
+      "unknown"
+    ]
+  }
+}

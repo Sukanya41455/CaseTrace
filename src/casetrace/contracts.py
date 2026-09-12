@@ -13,6 +13,7 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    TypeAdapter,
     computed_field,
     field_validator,
     model_validator,
@@ -69,7 +70,9 @@ class PaymentQuery(ContractModel):
     @field_validator("date_from", "date_to", mode="before")
     @classmethod
     def require_date_only(cls, value: object) -> object:
-        if isinstance(value, datetime) or (isinstance(value, str) and len(value) != 10):
+        if not isinstance(value, (str, date)) or isinstance(value, datetime):
+            raise ValueError("dates must be ISO calendar dates without times")
+        if isinstance(value, str) and len(value) != 10:
             raise ValueError("dates must be ISO calendar dates without times")
         return value
 
@@ -276,9 +279,7 @@ class VariableValue(ContractModel):
     field: Identifier | None = None
 
 
-type ValueRef = Annotated[
-    LiteralValue | InputValue | VariableValue, Field(discriminator="kind")
-]
+type ValueRef = Annotated[LiteralValue | InputValue | VariableValue, Field(discriminator="kind")]
 INITIAL_VARIABLES = frozenset({"entry_url"})
 
 
@@ -329,10 +330,7 @@ class TableRelationStrategy(ContractModel):
 
 
 type TargetStrategy = Annotated[
-    AccessibleRoleStrategy
-    | VisibleTextStrategy
-    | AdjacentControlStrategy
-    | TableRelationStrategy,
+    AccessibleRoleStrategy | VisibleTextStrategy | AdjacentControlStrategy | TableRelationStrategy,
     Field(discriminator="kind"),
 ]
 
@@ -431,12 +429,24 @@ class Provenance(ContractModel):
         return self
 
 
+class CheckpointRole(StrEnum):
+    MEMBER_IDENTITY_VERIFIED = "member_identity_verified"
+    ACCOUNT_IDENTITY_VERIFIED = "account_identity_verified"
+    SOURCE_IDENTITY_VERIFIED = "source_identity_verified"
+    FILTERS_VERIFIED = "filters_verified"
+    PAGE_EXHAUSTED = "page_exhausted"
+    SOURCE_EXHAUSTED = "source_exhausted"
+    ACCOUNTS_EXHAUSTED = "accounts_exhausted"
+    PAYMENT_IDENTITY_VERIFIED = "payment_identity_verified"
+
+
 class NavigateStep(ContractModel):
     kind: Literal["navigate"] = "navigate"
     step_id: Identifier
     url: ValueRef
     checks: list[Predicate]
     checkpoint: Identifier | None
+    checkpoint_role: CheckpointRole | None = None
     provenance: Provenance
 
 
@@ -447,6 +457,7 @@ class FillStep(ContractModel):
     value: ValueRef
     checks: list[Predicate]
     checkpoint: Identifier | None
+    checkpoint_role: CheckpointRole | None = None
     provenance: Provenance
 
 
@@ -456,6 +467,7 @@ class ClickStep(ContractModel):
     target_id: Identifier
     checks: list[Predicate]
     checkpoint: Identifier | None
+    checkpoint_role: CheckpointRole | None = None
     provenance: Provenance
 
 
@@ -465,6 +477,13 @@ class ReadParser(StrEnum):
     DATE = "date"
     ENUM = "enum"
     TABLE_ROWS = "table_rows"
+    FIELDS = "fields"
+
+
+class ReadRole(StrEnum):
+    ACCOUNTS = "accounts"
+    PAYMENT_ROWS = "payment_rows"
+    PAYMENT_DETAIL = "payment_detail"
 
 
 class ReadStep(ContractModel):
@@ -472,10 +491,29 @@ class ReadStep(ContractModel):
     step_id: Identifier
     target_id: Identifier
     parser: ReadParser
+    read_role: ReadRole | None = None
+    account: ValueRef | None = None
+    source: ValueRef | None = None
     store_as: Identifier
     checks: list[Predicate]
     checkpoint: Identifier | None
+    checkpoint_role: CheckpointRole | None = None
     provenance: Provenance
+
+    @model_validator(mode="after")
+    def validate_read_role(self) -> ReadStep:
+        if self.read_role == ReadRole.PAYMENT_ROWS:
+            if self.parser != ReadParser.TABLE_ROWS or self.account is None or self.source is None:
+                raise ValueError(
+                    "payment_rows read requires table_rows parser, account, and source"
+                )
+        elif self.account is not None or self.source is not None:
+            raise ValueError("account and source context are only valid for payment_rows reads")
+        if self.read_role == ReadRole.ACCOUNTS and self.parser != ReadParser.TABLE_ROWS:
+            raise ValueError("accounts read requires table_rows parser")
+        if self.read_role == ReadRole.PAYMENT_DETAIL and self.parser != ReadParser.FIELDS:
+            raise ValueError("payment_detail read requires fields parser")
+        return self
 
 
 class AssertStep(ContractModel):
@@ -484,6 +522,7 @@ class AssertStep(ContractModel):
     predicate: Predicate
     checks: list[Predicate]
     checkpoint: Identifier | None
+    checkpoint_role: CheckpointRole | None = None
     provenance: Provenance
 
 
@@ -499,6 +538,7 @@ class BranchStep(ContractModel):
     fallback_failure: FailureCode | None = None
     checks: list[Predicate]
     checkpoint: Identifier | None
+    checkpoint_role: CheckpointRole | None = None
     provenance: Provenance
 
     @model_validator(mode="after")
@@ -520,6 +560,7 @@ class ForEachStep(ContractModel):
     steps: list[Step]
     checks: list[Predicate]
     checkpoint: Identifier | None
+    checkpoint_role: CheckpointRole | None = None
     provenance: Provenance
 
 
@@ -532,22 +573,68 @@ class PaginateStep(ContractModel):
     steps: list[Step]
     checks: list[Predicate]
     checkpoint: Identifier | None
+    checkpoint_role: CheckpointRole | None = None
     provenance: Provenance
+
+
+class PaymentFieldBindings(ContractModel):
+    member_id: VariableValue
+    account_id: VariableValue
+    reference: VariableValue
+    direction: VariableValue
+    amount: VariableValue
+    currency: VariableValue
+    transaction_date: VariableValue
+    status: VariableValue
+    source: VariableValue
+    observation_id: VariableValue
+
+    @model_validator(mode="after")
+    def require_matching_fields(self) -> PaymentFieldBindings:
+        for field_name in type(self).model_fields:
+            reference = getattr(self, field_name)
+            if reference.field != field_name:
+                raise ValueError(f"{field_name} must select the matching payment detail field")
+        return self
+
+
+class PaymentDecisionBindings(ContractModel):
+    """Explicit reduction of observed reads after bounded traversal completes."""
+
+    kind: Literal["payment_decision"] = "payment_decision"
+    record_steps: Annotated[list[Identifier], Field(min_length=1)]
+    detail_steps: Annotated[list[Identifier], Field(min_length=1)]
+
+    @field_validator("record_steps", "detail_steps")
+    @classmethod
+    def unique_reads(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("payment decision requires unique read step IDs")
+        return value
 
 
 class ReturnStep(ContractModel):
     kind: Literal["return"] = "return"
     step_id: Identifier
-    result_kind: Literal["success", "business_outcome", "failure"]
-    result: ValueRef
+    result_kind: Literal["success", "business_outcome", "failure", "payment_decision"]
+    result: PaymentDecisionBindings | PaymentFieldBindings | ValueRef
     checks: list[Predicate]
     checkpoint: Identifier | None
+    checkpoint_role: CheckpointRole | None = None
     provenance: Provenance
 
     @model_validator(mode="after")
     def validate_static_return_shape(self) -> ReturnStep:
-        if not isinstance(self.result, LiteralValue):
+        if self.result_kind == "payment_decision":
+            if not isinstance(self.result, PaymentDecisionBindings):
+                raise ValueError("payment_decision return requires PaymentDecisionBindings")
             return self
+        if self.result_kind == "success":
+            if not isinstance(self.result, PaymentFieldBindings):
+                raise ValueError("success return requires PaymentFieldBindings")
+            return self
+        if not isinstance(self.result, LiteralValue):
+            raise ValueError("business and failure returns require a literal result code")
         value = self.result.value
         if self.result_kind == "business_outcome" and value not in {
             item.value for item in BusinessOutcomeCode
@@ -555,8 +642,6 @@ class ReturnStep(ContractModel):
             raise ValueError("business outcome return must contain a valid outcome code")
         if self.result_kind == "failure" and value not in {item.value for item in FailureCode}:
             raise ValueError("failure return must contain a valid failure code")
-        if self.result_kind == "success":
-            raise ValueError("success return must reference a verified runtime payment")
         return self
 
 
@@ -577,11 +662,13 @@ type Step = Annotated[
 class InputContract(ContractModel):
     name: Literal["PaymentQuery"] = "PaymentQuery"
     version: Literal["1.0"] = "1.0"
+    schema_ref: Literal["#/$defs/PaymentQuery"] = "#/$defs/PaymentQuery"
 
 
 class OutputContract(ContractModel):
     name: Literal["RunResult"] = "RunResult"
     version: Literal["1.0"] = "1.0"
+    schema_ref: Literal["#/$defs/RunResult"] = "#/$defs/RunResult"
     result_kinds: Annotated[
         list[Literal["success", "business_outcome", "failure"]], Field(min_length=1)
     ]
@@ -616,6 +703,7 @@ class Handler(ContractModel):
     failure_code: FailureCode
     max_attempts: int = Field(default=0, ge=0, le=2)
     backoff_ms: list[Literal[250, 1000]] = Field(default_factory=list, max_length=2)
+    provenance: Provenance
 
     @model_validator(mode="after")
     def validate_retry(self) -> Handler:
@@ -675,6 +763,164 @@ def _walk_contracts(value: object) -> Iterable[ContractModel]:
             yield from _walk_contracts(field_value)
 
 
+type VariableSource = (
+    ReadRole | Literal["entry", "scalar", "account_item", "payment_row", "loop_item"]
+)
+
+
+def _validate_value_refs(
+    value: object,
+    available: Mapping[str, VariableSource],
+    context: str,
+) -> None:
+    mapping_sources = {ReadRole.PAYMENT_DETAIL, "account_item", "payment_row"}
+    for model in _walk_contracts(value):
+        if not isinstance(model, VariableValue):
+            continue
+        if model.name not in available:
+            raise ValueError(
+                f"unknown variable {model.name!r}: referenced before it is available in {context}"
+            )
+        if model.field is not None and available[model.name] not in mapping_sources:
+            raise ValueError(f"variable {model.name!r} does not provide named fields in {context}")
+
+
+def _validate_target_use(
+    target_id: str,
+    available: Mapping[str, VariableSource],
+    targets: Mapping[str, TargetSpec],
+    *,
+    mutation: bool = False,
+    pagination: bool = False,
+) -> None:
+    target = targets.get(target_id)
+    if target is None:
+        raise ValueError(f"unknown target {target_id!r}")
+    if mutation and target.cardinality != 1:
+        label = "pagination target" if pagination else "mutation target"
+        raise ValueError(f"{label} must have cardinality exactly one")
+    _validate_value_refs(target.strategies, available, f"target {target_id!r}")
+
+
+def _validate_predicate(
+    predicate: Predicate,
+    available: Mapping[str, VariableSource],
+    targets: Mapping[str, TargetSpec],
+) -> None:
+    if isinstance(predicate, (VisiblePredicate, AbsentPredicate, CountPredicate)):
+        _validate_target_use(predicate.target_id, available, targets)
+    elif isinstance(predicate, EqualsPredicate):
+        _validate_value_refs(predicate, available, "equals predicate")
+    else:
+        for child in predicate.predicates:
+            _validate_predicate(child, available, targets)
+
+
+def _validate_checks(
+    step: Step,
+    available: Mapping[str, VariableSource],
+    targets: Mapping[str, TargetSpec],
+) -> None:
+    if step.checkpoint_role is not None:
+        if step.checkpoint is None:
+            raise ValueError("checkpoint_role requires a checkpoint ID")
+        if not step.checks:
+            raise ValueError("checkpoint_role requires an executable check")
+    if isinstance(step, ReturnStep) and not step.checks:
+        raise ValueError("return operation requires an executable check")
+    if not step.checks and not isinstance(step, (AssertStep, BranchStep, PaginateStep)):
+        raise ValueError(f"step {step.step_id!r} requires an executable check")
+    for predicate in step.checks:
+        _validate_predicate(predicate, available, targets)
+
+
+def _joined_variables(
+    branches: list[dict[str, VariableSource]],
+) -> dict[str, VariableSource]:
+    if not branches:
+        return {}
+    common_names = set.intersection(*(set(branch) for branch in branches))
+    return {
+        name: branches[0][name]
+        for name in common_names
+        if all(branch[name] == branches[0][name] for branch in branches[1:])
+    }
+
+
+def _validate_sequence(
+    steps: Iterable[Step],
+    incoming: Mapping[str, VariableSource],
+    targets: Mapping[str, TargetSpec],
+) -> tuple[dict[str, VariableSource], bool]:
+    available = dict(incoming)
+    reachable = True
+    for step in steps:
+        if not reachable:
+            raise ValueError(f"step {step.step_id!r} is unreachable after a return")
+
+        if isinstance(step, NavigateStep):
+            _validate_value_refs(step.url, available, f"step {step.step_id!r}")
+        elif isinstance(step, FillStep):
+            _validate_target_use(step.target_id, available, targets, mutation=True)
+            _validate_value_refs(step.value, available, f"step {step.step_id!r}")
+        elif isinstance(step, ClickStep):
+            _validate_target_use(step.target_id, available, targets, mutation=True)
+        elif isinstance(step, ReadStep):
+            _validate_target_use(step.target_id, available, targets)
+            _validate_value_refs(step.account, available, f"step {step.step_id!r} account")
+            _validate_value_refs(step.source, available, f"step {step.step_id!r} source")
+            available[step.store_as] = step.read_role or "scalar"
+        elif isinstance(step, AssertStep):
+            _validate_predicate(step.predicate, available, targets)
+        elif isinstance(step, BranchStep):
+            continuing = []
+            for case in step.cases:
+                _validate_predicate(case.guard, available, targets)
+                branch_variables, branch_reachable = _validate_sequence(
+                    case.steps, available, targets
+                )
+                if branch_reachable:
+                    continuing.append(branch_variables)
+            if continuing:
+                available = _joined_variables(continuing)
+            else:
+                reachable = False
+        elif isinstance(step, ForEachStep):
+            _validate_value_refs(step.collection, available, f"step {step.step_id!r}")
+            item_source: VariableSource = "loop_item"
+            if isinstance(step.collection, VariableValue):
+                collection_source = available[step.collection.name]
+                if collection_source == ReadRole.ACCOUNTS:
+                    item_source = "account_item"
+                elif collection_source == ReadRole.PAYMENT_ROWS:
+                    item_source = "payment_row"
+            loop_variables = available | {step.item_variable: item_source}
+            _validate_sequence(step.steps, loop_variables, targets)
+        elif isinstance(step, PaginateStep):
+            _validate_target_use(
+                step.next_target_id,
+                available,
+                targets,
+                mutation=True,
+                pagination=True,
+            )
+            _validate_predicate(step.until, available, targets)
+            _validate_sequence(step.steps, available, targets)
+        elif isinstance(step, ReturnStep):
+            _validate_value_refs(step.result, available, f"step {step.step_id!r}")
+            if isinstance(step.result, PaymentFieldBindings):
+                sources = {available[ref.name] for ref in step.result.__dict__.values()}
+                if sources != {ReadRole.PAYMENT_DETAIL}:
+                    raise ValueError(
+                        "PaymentFieldBindings must come from a typed payment_detail read"
+                    )
+
+        _validate_checks(step, available, targets)
+        if isinstance(step, ReturnStep):
+            reachable = False
+    return available, reachable
+
+
 class Capability(ContractModel):
     schema_version: Literal["1.0"]
     capability_id: Literal["trace_incoming_payment"]
@@ -697,10 +943,10 @@ class Capability(ContractModel):
         target_ids = [target.target_id for target in self.targets]
         if len(target_ids) != len(set(target_ids)):
             raise ValueError("target IDs must be unique")
-        known_targets = set(target_ids)
+        targets = {target.target_id: target for target in self.targets}
 
         walked_steps = list(_walk_steps(self.steps))
-        if any(depth > 3 for _, depth in walked_steps):
+        if any(depth > 4 for _, depth in walked_steps):
             raise ValueError("operation nesting exceeds the supported traversal structure")
         steps = [step for step, _ in walked_steps]
         step_ids = [step.step_id for step in steps]
@@ -709,28 +955,40 @@ class Capability(ContractModel):
         if not any(step.checkpoint is not None for step in steps):
             raise ValueError("artifact requires at least one checkpoint")
 
-        declared_variables = INITIAL_VARIABLES | {
-            item.store_as for item in steps if isinstance(item, ReadStep)
-        } | {item.item_variable for item in steps if isinstance(item, ForEachStep)}
+        declared_names = (
+            INITIAL_VARIABLES
+            | {item.store_as for item in steps if isinstance(item, ReadStep)}
+            | {item.item_variable for item in steps if isinstance(item, ForEachStep)}
+        )
+        for target in self.targets:
+            for model in _walk_contracts(target.strategies):
+                if isinstance(model, VariableValue) and model.name not in declared_names:
+                    raise ValueError(f"unknown variable {model.name!r} in target definition")
 
-        for model in _walk_contracts(self):
-            if isinstance(model, (VisiblePredicate, AbsentPredicate, CountPredicate)):
-                if model.target_id not in known_targets:
-                    raise ValueError(f"unknown target {model.target_id!r}")
-            if isinstance(model, (FillStep, ClickStep, ReadStep)):
-                if model.target_id not in known_targets:
-                    raise ValueError(f"unknown target {model.target_id!r}")
-                target = self.targets[target_ids.index(model.target_id)]
-                if isinstance(model, (FillStep, ClickStep)) and target.cardinality != 1:
-                    raise ValueError("mutation targets must have cardinality exactly one")
-            if isinstance(model, PaginateStep) and model.next_target_id not in known_targets:
-                raise ValueError(f"unknown target {model.next_target_id!r}")
-            if isinstance(model, VariableValue) and model.name not in declared_variables:
-                raise ValueError(f"unknown variable {model.name!r}")
+        initial_variables: dict[str, VariableSource] = {name: "entry" for name in INITIAL_VARIABLES}
+        _, has_fallthrough = _validate_sequence(self.steps, initial_variables, targets)
+        if has_fallthrough:
+            raise ValueError("an executable artifact path ends without a typed return")
+        for handler in self.handlers:
+            _validate_predicate(handler.detector, initial_variables, targets)
 
         allowed_returns = set(self.output_schema.result_kinds)
         for step in steps:
-            if isinstance(step, ReturnStep) and step.result_kind not in allowed_returns:
+            if not isinstance(step, ReturnStep):
+                continue
+            if isinstance(step.result, PaymentDecisionBindings):
+                if allowed_returns != {"success", "business_outcome", "failure"}:
+                    raise ValueError("payment decision requires all output result kinds")
+                reads = {item.step_id: item for item in steps if isinstance(item, ReadStep)}
+                for ids, role in (
+                    (step.result.record_steps, ReadRole.PAYMENT_ROWS),
+                    (step.result.detail_steps, ReadRole.PAYMENT_DETAIL),
+                ):
+                    if any(key not in reads or reads[key].read_role != role for key in ids):
+                        raise ValueError(
+                            "payment decision must reference correctly typed read steps"
+                        )
+            elif step.result_kind not in allowed_returns:
                 raise ValueError(f"return kind {step.result_kind!r} is absent from output contract")
         if not any(isinstance(step, ReturnStep) for step in steps):
             raise ValueError("artifact requires a typed return operation")
@@ -814,3 +1072,29 @@ BranchStep.model_rebuild()
 ForEachStep.model_rebuild()
 PaginateStep.model_rebuild()
 Capability.model_rebuild()
+
+
+def contract_schema_bundle() -> dict[str, object]:
+    """Return the fixed capability schema plus its resolvable call contracts."""
+
+    roots = {
+        "Capability": Capability.model_json_schema(ref_template="#/$defs/{model}"),
+        "PaymentQuery": PaymentQuery.model_json_schema(ref_template="#/$defs/{model}"),
+        "RunResult": TypeAdapter(RunResult).json_schema(ref_template="#/$defs/{model}"),
+    }
+    definitions: dict[str, object] = {}
+    for root_name, schema in roots.items():
+        nested = schema.pop("$defs", {})
+        for name, definition in nested.items():
+            existing = definitions.get(name)
+            if existing is not None and existing != definition:
+                raise RuntimeError(f"conflicting JSON Schema definition {name!r}")
+            definitions[name] = definition
+        definitions[root_name] = schema
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:casetrace:schema:1.0",
+        "title": "CaseTrace capability and calling contracts",
+        "$ref": "#/$defs/Capability",
+        "$defs": definitions,
+    }

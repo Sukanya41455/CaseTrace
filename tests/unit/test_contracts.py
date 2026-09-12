@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, date, datetime
 
 import pytest
@@ -45,6 +46,7 @@ BASE = {
         {"date_to": "2026-08-31"},
         {"date_to": "2026-10-15"},
         {"date_from": "2026-09-01T00:00:00Z"},
+        {"date_from": 0, "date_to": 0},
         {"reference": ""},
         {"undeclared": True},
     ],
@@ -103,10 +105,15 @@ def _artifact() -> dict:
         "vendor": "CaseTrace Fixture Bank",
         "supported_app_versions": ["2026.09"],
         "required_surface_features": ["web.frames", "web.tables"],
-        "input_schema": {"name": "PaymentQuery", "version": "1.0"},
+        "input_schema": {
+            "name": "PaymentQuery",
+            "version": "1.0",
+            "schema_ref": "#/$defs/PaymentQuery",
+        },
         "output_schema": {
             "name": "RunResult",
             "version": "1.0",
+            "schema_ref": "#/$defs/RunResult",
             "result_kinds": ["success", "business_outcome", "failure"],
         },
         "scope": {
@@ -123,9 +130,7 @@ def _artifact() -> dict:
                 "frame_path": ["content"],
                 "container": "member-search",
                 "anchor": "Member ID",
-                "strategies": [
-                    {"kind": "accessible_role", "role": "textbox", "name": "Member ID"}
-                ],
+                "strategies": [{"kind": "accessible_role", "role": "textbox", "name": "Member ID"}],
                 "cardinality": 1,
             },
             {
@@ -134,9 +139,7 @@ def _artifact() -> dict:
                 "frame_path": ["content"],
                 "container": "activity",
                 "anchor": "Transactions",
-                "strategies": [
-                    {"kind": "accessible_role", "role": "link", "name": "Next"}
-                ],
+                "strategies": [{"kind": "accessible_role", "role": "link", "name": "Next"}],
                 "cardinality": 1,
             },
         ],
@@ -156,7 +159,7 @@ def _artifact() -> dict:
                 "target_id": "member-input",
                 "parser": "text",
                 "store_as": "verified_member",
-                "checks": [],
+                "checks": [{"kind": "visible", "target_id": "member-input"}],
                 "checkpoint": None,
                 "provenance": provenance,
             },
@@ -293,6 +296,212 @@ def test_rejects_return_kind_outside_declared_output_contract():
         Capability.model_validate(artifact)
 
 
+def test_rejects_label_only_checkpoints_without_executable_checks():
+    artifact = _artifact()
+    for step in artifact["steps"]:
+        step["checks"] = []
+    with pytest.raises(ValidationError, match="executable check"):
+        Capability.model_validate(artifact)
+
+
+def test_rejects_terminal_branch_path_that_bypasses_checks():
+    artifact = _artifact()
+    artifact["steps"].insert(
+        -1,
+        {
+            "kind": "branch",
+            "step_id": "unchecked-terminal-branch",
+            "cases": [
+                {
+                    "guard": {"kind": "visible", "target_id": "member-input"},
+                    "steps": [
+                        {
+                            "kind": "return",
+                            "step_id": "unchecked-return",
+                            "result_kind": "business_outcome",
+                            "result": {"kind": "literal", "value": "NOT_FOUND"},
+                            "checks": [],
+                            "checkpoint": "label-only",
+                            "provenance": artifact["provenance"],
+                        }
+                    ],
+                }
+            ],
+            "fallback_failure": "UNKNOWN_STATE",
+            "checks": [{"kind": "visible", "target_id": "member-input"}],
+            "checkpoint": "branch-selected",
+            "provenance": artifact["provenance"],
+        },
+    )
+    with pytest.raises(ValidationError, match="return operation requires an executable check"):
+        Capability.model_validate(artifact)
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        {"kind": "input", "name": "amount"},
+        {"kind": "variable", "name": "verified_member"},
+    ],
+)
+def test_rejects_untyped_success_return_sources(result):
+    artifact = _artifact()
+    artifact["steps"][-1].update(result_kind="success", result=result)
+    with pytest.raises(ValidationError, match="PaymentFieldBindings"):
+        Capability.model_validate(artifact)
+
+
+def _payment_bindings(variable: str = "payment_detail") -> dict:
+    fields = (
+        "member_id",
+        "account_id",
+        "reference",
+        "direction",
+        "amount",
+        "currency",
+        "transaction_date",
+        "status",
+        "source",
+        "observation_id",
+    )
+    return {field: {"kind": "variable", "name": variable, "field": field} for field in fields}
+
+
+def test_accepts_success_bindings_from_typed_payment_detail_read():
+    artifact = _artifact()
+    artifact["steps"][1].update(
+        parser="fields",
+        read_role="payment_detail",
+        store_as="payment_detail",
+        checks=[{"kind": "visible", "target_id": "member-input"}],
+    )
+    artifact["steps"][-1].update(
+        result_kind="success",
+        result=_payment_bindings(),
+        checks=[
+            {
+                "kind": "equals",
+                "left": {"kind": "variable", "name": "payment_detail", "field": "member_id"},
+                "right": {"kind": "input", "name": "member_id"},
+            }
+        ],
+        checkpoint_role="payment_identity_verified",
+    )
+    capability = Capability.model_validate(artifact)
+    assert capability.steps[-1].result.member_id.field == "member_id"
+
+
+def test_rejects_handler_without_validated_provenance():
+    artifact = _artifact()
+    handler = {
+        "handler_id": "retry-timeout",
+        "detector": {"kind": "visible", "target_id": "member-input"},
+        "disposition": "retry",
+        "failure_code": "TIMEOUT",
+        "max_attempts": 2,
+        "backoff_ms": [250, 1000],
+    }
+    artifact["handlers"] = [handler]
+    with pytest.raises(ValidationError, match="provenance"):
+        Capability.model_validate(artifact)
+
+    handler["provenance"] = {"kind": "authored", "event_ids": []}
+    with pytest.raises(ValidationError, match="validation scenario"):
+        Capability.model_validate(artifact)
+
+
+def test_rejects_ambiguous_next_page_target():
+    artifact = _artifact()
+    artifact["targets"][1]["cardinality"] = 2
+    artifact["steps"].insert(
+        -1,
+        {
+            "kind": "paginate",
+            "step_id": "pages",
+            "next_target_id": "next-page",
+            "until": {"kind": "absent", "target_id": "next-page"},
+            "max_pages": 3,
+            "steps": [],
+            "checks": [{"kind": "visible", "target_id": "member-input"}],
+            "checkpoint": "pages-exhausted",
+            "provenance": artifact["provenance"],
+        },
+    )
+    with pytest.raises(ValidationError, match="pagination target.*cardinality exactly one"):
+        Capability.model_validate(artifact)
+
+
+def test_rejects_variable_reference_before_producer():
+    artifact = _artifact()
+    artifact["steps"][0]["value"] = {"kind": "variable", "name": "verified_member"}
+    with pytest.raises(ValidationError, match="before it is available"):
+        Capability.model_validate(artifact)
+
+
+def test_rejects_variable_from_only_one_branch_after_join():
+    artifact = _artifact()
+    branch_read = artifact["steps"].pop(1)
+    branch_read["store_as"] = "branch_member"
+    artifact["steps"].insert(
+        1,
+        {
+            "kind": "branch",
+            "step_id": "member-branch",
+            "cases": [
+                {
+                    "guard": {"kind": "visible", "target_id": "member-input"},
+                    "steps": [branch_read],
+                },
+                {
+                    "guard": {"kind": "absent", "target_id": "member-input"},
+                    "steps": [],
+                },
+            ],
+            "fallback_failure": "UNKNOWN_STATE",
+            "checks": [{"kind": "visible", "target_id": "member-input"}],
+            "checkpoint": "branch-complete",
+            "provenance": artifact["provenance"],
+        },
+    )
+    artifact["steps"][-1]["checks"][0]["left"] = {
+        "kind": "variable",
+        "name": "branch_member",
+    }
+    with pytest.raises(ValidationError, match="before it is available"):
+        Capability.model_validate(artifact)
+
+
+def test_rejects_loop_variable_outside_loop_body():
+    artifact = _artifact()
+    artifact["steps"][1].update(
+        parser="table_rows",
+        read_role="accounts",
+        store_as="accounts",
+        checks=[{"kind": "visible", "target_id": "member-input"}],
+    )
+    artifact["steps"].insert(
+        -1,
+        {
+            "kind": "for_each",
+            "step_id": "accounts-loop",
+            "collection": {"kind": "variable", "name": "accounts"},
+            "item_variable": "account",
+            "max_items": 3,
+            "steps": [],
+            "checks": [{"kind": "visible", "target_id": "member-input"}],
+            "checkpoint": "accounts-finished",
+            "provenance": artifact["provenance"],
+        },
+    )
+    artifact["steps"][-1]["checks"][0]["left"] = {
+        "kind": "variable",
+        "name": "account",
+        "field": "account_id",
+    }
+    with pytest.raises(ValidationError, match="before it is available"):
+        Capability.model_validate(artifact)
+
+
 def test_allows_trusted_entry_url_runtime_variable():
     artifact = _artifact()
     artifact["steps"].insert(
@@ -301,7 +510,7 @@ def test_allows_trusted_entry_url_runtime_variable():
             "kind": "navigate",
             "step_id": "open-entry",
             "url": {"kind": "variable", "name": "entry_url"},
-            "checks": [],
+            "checks": [{"kind": "visible", "target_id": "member-input"}],
             "checkpoint": "entry-open",
             "provenance": artifact["provenance"],
         },
@@ -317,9 +526,15 @@ def test_cli_exports_capability_json_schema(tmp_path):
     result = CliRunner().invoke(app, ["schema", "--output", str(output)])
 
     assert result.exit_code == 0, result.output
-    exported = output.read_text(encoding="utf-8")
-    assert '"Capability"' in exported
-    assert '"schema_version"' in exported
+    exported = json.loads(output.read_text(encoding="utf-8"))
+    assert exported["$id"] == "urn:casetrace:schema:1.0"
+    assert exported["$defs"]["PaymentQuery"]["properties"]["member_id"]
+    assert exported["$defs"]["RunResult"]["discriminator"]["propertyName"] == "kind"
+    capability = exported["$defs"]["Capability"]
+    assert capability["properties"]["input_schema"]["$ref"]
+    assert exported["$defs"]["InputContract"]["properties"]["schema_ref"]["const"] == (
+        "#/$defs/PaymentQuery"
+    )
 
 
 def test_terminal_results_are_discriminated_and_forbid_extra_fields():

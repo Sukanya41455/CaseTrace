@@ -6,7 +6,7 @@ Date: 2026-09-11. Planning baseline; application implementation has not started.
 
 Build a Python system that learns how to investigate an incoming payment by operating a legacy-style banking UI, saves a typed capability, and replays it with new inputs without a model. Demonstrate deliberate outcomes, bounded recovery, and a person taking over the same live browser session.
 
-The source of requirements is `AComputer-Use Automation System.docx`, especially sections 3, 5, 6, and 7. The user selected CaseTrace, a one-week effort, and Python. Model API access still needs to be set up. The proposed integration is the OpenAI Responses API; the model ID is an explicit configuration value, verified by an access check and recorded in discovery evidence. No live-service access is needed to implement or test the local core.
+The source of requirements is `AComputer-Use Automation System.docx`, especially sections 3, 5, 6, and 7. The user selected CaseTrace, a one-week effort, and Python. Model API access still needs to be set up. The proposed integration is the Gemini Generate Content API; the model ID is an explicit configuration value, verified by an access check and recorded in discovery evidence. No live-service access is needed to implement or test the local core.
 
 Global constraints:
 

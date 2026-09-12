@@ -6,7 +6,7 @@ from typing import Annotated
 
 import typer
 
-from casetrace.contracts import Capability
+from casetrace.contracts import contract_schema_bundle
 
 app = typer.Typer(help="Discover, validate, and replay CaseTrace capabilities.")
 
@@ -24,7 +24,7 @@ def export_schema(
 
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
-        json.dumps(Capability.model_json_schema(), indent=2, sort_keys=True) + "\n",
+        json.dumps(contract_schema_bundle(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     typer.echo(str(output))
