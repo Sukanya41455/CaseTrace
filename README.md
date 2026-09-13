@@ -1,6 +1,6 @@
 # CaseTrace
 
-CaseTrace is being implemented as a Python system that discovers a payment-investigation workflow through a synthetic banking UI, saves a typed capability, and replays it without a model. The implementation plan is in `docs/superpowers/plans/2026-09-11-casetrace-implementation.md`.
+CaseTrace is being implemented as a Python system that discovers a payment-investigation workflow through a synthetic banking UI, saves a typed capability, and replays it without a model.
 
 ## Python environment
 
