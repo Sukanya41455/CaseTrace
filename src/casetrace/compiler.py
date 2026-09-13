@@ -8,6 +8,8 @@ from collections.abc import Iterable
 from pydantic import ValidationError
 
 from .contracts import (
+    AccessibleRoleStrategy,
+    AdjacentControlStrategy,
     AssertStep,
     BranchStep,
     BusinessOutcomeCode,
@@ -21,7 +23,9 @@ from .contracts import (
     ReadStep,
     ReturnStep,
     Step,
+    TableRelationStrategy,
     TenantBindings,
+    VisibleTextStrategy,
 )
 from .discovery import DiscoveryRecording
 
@@ -41,7 +45,9 @@ def compile_candidate(
     """Accept only a schema-valid proposal grounded in the supplied recording."""
 
     try:
-        capability = proposal if isinstance(proposal, Capability) else Capability.model_validate(proposal)
+        capability = (
+            proposal if isinstance(proposal, Capability) else Capability.model_validate(proposal)
+        )
     except ValidationError as error:
         raise CompilationError("candidate does not satisfy the capability schema") from error
     if capability.validation:
@@ -92,8 +98,7 @@ def _validate_provenance(capability: Capability, recording: DiscoveryRecording) 
             if current_position < prior_position:
                 raise CompilationError("observed action order differs from the recording")
             prior_position = current_position
-            if hasattr(step, "target_id"):
-                target_id = step.target_id
+            for target_id in _step_target_ids(step):
                 if target_id not in target_by_id:
                     raise CompilationError("observed step has an unresolved target")
                 if recorded.target is not None and not _semantically_matches_target(
@@ -157,13 +162,17 @@ def _validate_checkpoint_roles(capability: Capability) -> None:
 def _validate_generalizations(capability: Capability, recorded_events: set[str]) -> None:
     for step in _walk_steps(capability.steps):
         if isinstance(step, _PRIMITIVE_STEPS) and step.provenance.kind == "authored":
-            raise CompilationError("executable UI primitives must be observed or explicitly generalized")
+            raise CompilationError(
+                "executable UI primitives must be observed or explicitly generalized"
+            )
         if step.provenance.kind != "generalized":
             continue
         if not step.provenance.validation_scenario:
             raise CompilationError("generalized operation lacks a required validation scenario")
         if not step.provenance.event_ids or not set(step.provenance.event_ids) <= recorded_events:
-            raise CompilationError("generalized operation is not grounded in recorded event provenance")
+            raise CompilationError(
+                "generalized operation is not grounded in recorded event provenance"
+            )
         if isinstance(step, (ForEachStep, PaginateStep)) and not step.steps:
             raise CompilationError("generalized repetition cannot have an empty body")
 
@@ -190,30 +199,73 @@ def _same_primitive_value(candidate: Step, recorded: Step) -> bool:
     return isinstance(candidate, ClickStep) and isinstance(recorded, ClickStep)
 
 
+def _step_target_ids(step: Step) -> set[str]:
+    target_id = getattr(step, "target_id", None)
+    if isinstance(target_id, str):
+        return {target_id}
+    if not isinstance(step, AssertStep):
+        return set()
+
+    def predicate_targets(predicate) -> set[str]:
+        direct = getattr(predicate, "target_id", None)
+        if isinstance(direct, str):
+            return {direct}
+        return {
+            target
+            for item in getattr(predicate, "predicates", [])
+            for target in predicate_targets(item)
+        }
+
+    return predicate_targets(step.predicate)
+
+
 def _semantically_matches_target(candidate, recorded) -> bool:
-    if candidate.surface_kind != recorded.surface_kind or candidate.frame_path != recorded.frame_path:
+    if (
+        candidate.surface_kind != recorded.surface_kind
+        or candidate.frame_path != recorded.frame_path
+        or candidate.container != recorded.container
+        or candidate.anchor != recorded.anchor
+        or candidate.cardinality != recorded.cardinality
+        or len(candidate.strategies) != len(recorded.strategies)
+    ):
         return False
+    return all(
+        _semantically_matches_strategy(candidate_strategy, recorded_strategy)
+        for candidate_strategy, recorded_strategy in zip(
+            candidate.strategies, recorded.strategies, strict=True
+        )
+    )
 
-    def roles(target) -> set[str]:
-        values = set()
-        for strategy in target.strategies:
-            role = getattr(strategy, "role", None) or getattr(strategy, "control_role", None)
-            if role:
-                values.add(str(role))
-        return values
 
-    candidate_roles = roles(candidate)
-    recorded_roles = roles(recorded)
-    if candidate_roles and recorded_roles and not candidate_roles & recorded_roles:
+def _semantically_matches_strategy(candidate, recorded) -> bool:
+    if type(candidate) is not type(recorded):
         return False
-    candidate_names = {
-        strategy.name
-        for strategy in candidate.strategies
-        if hasattr(strategy, "name") and isinstance(strategy.name, str)
-    }
-    recorded_names = {
-        strategy.name
-        for strategy in recorded.strategies
-        if hasattr(strategy, "name") and isinstance(strategy.name, str)
-    }
-    return not candidate_names or not recorded_names or bool(candidate_names & recorded_names)
+    if isinstance(candidate, AccessibleRoleStrategy):
+        return candidate.role == recorded.role and _matches_observed_value(
+            candidate.name, recorded.name
+        )
+    if isinstance(candidate, VisibleTextStrategy):
+        return candidate.exact == recorded.exact and _matches_observed_value(
+            candidate.text, recorded.text
+        )
+    if isinstance(candidate, AdjacentControlStrategy):
+        return candidate.control_role == recorded.control_role and _matches_observed_value(
+            candidate.label, recorded.label
+        )
+    if isinstance(candidate, TableRelationStrategy):
+        return (
+            candidate.header == recorded.header
+            and candidate.control_role == recorded.control_role
+            and _matches_observed_value(candidate.row_value, recorded.row_value)
+        )
+    return False
+
+
+def _matches_observed_value(candidate, recorded) -> bool:
+    if isinstance(recorded, str):
+        if isinstance(candidate, str):
+            return candidate == recorded
+        return "[REDACTED]" in recorded
+    if isinstance(candidate, str):
+        return False
+    return candidate.model_dump(mode="json") == recorded.model_dump(mode="json")

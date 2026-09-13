@@ -68,7 +68,12 @@ def create_fixture_app(scenario: str) -> FastAPI:
 
     @app.get("/bank/members", response_class=HTMLResponse)
     async def member_search(request: Request) -> HTMLResponse:
-        return render(request, "members.html", {"mode": "search"})
+        status = request.cookies.get("fixture_session")
+        if status not in {"active", "reauthenticated"} or (
+            state.expiration_triggered and status != "reauthenticated"
+        ):
+            return render(request, "login.html", {"message": "Session expired"}, status_code=401)
+        return render(request, "members.html", {"mode": "search", "signed_in": True})
 
     @app.post("/bank/members/search")
     async def search_member(request: Request, member_id: str = Form()) -> HTMLResponse:
@@ -225,6 +230,7 @@ def create_fixture_app(scenario: str) -> FastAPI:
                 "filters_applied": any(filters.values()),
                 "page": safe_page,
                 "page_count": page_count,
+                "detail_query": urlencode(query | {"page": safe_page}),
                 "previous_url": (
                     f"{base_path}?{urlencode(query | {'page': safe_page - 1})}"
                     if safe_page > 1
@@ -268,7 +274,26 @@ def create_fixture_app(scenario: str) -> FastAPI:
                 {"message": "Transaction not found"},
                 status_code=404,
             )
-        return render(request, "detail.html", {"transaction": transaction})
+        return_query = {
+            key: value
+            for key, value in request.query_params.items()
+            if key
+            in {
+                "source",
+                "page",
+                "date_from",
+                "date_to",
+                "amount",
+                "currency",
+                "direction",
+                "reference",
+            }
+        }
+        return render(
+            request,
+            "detail.html",
+            {"transaction": transaction, "return_query": urlencode(return_query)},
+        )
 
     @app.get("/bank/login", response_class=HTMLResponse)
     async def login(request: Request) -> HTMLResponse:

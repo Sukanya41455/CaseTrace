@@ -52,6 +52,110 @@ _TRACEBACK = re.compile(r"(?is)\btraceback\b.*$")
 _PROVIDER_BODY = re.compile(r"(?is)\b(provider(?: response| error)? body)\s*[:=].*$")
 
 
+def check_evidence(root: Path) -> list[str]:
+    """Check hashes and required run links; this does not authenticate the provider."""
+    problems: list[str] = []
+
+    def local_path(base: Path, value: str) -> Path:
+        path = (base / value).resolve()
+        if not path.is_relative_to(base.resolve()) or path == base.resolve():
+            raise ValueError("unsafe evidence path")
+        return path
+
+    def read(path: Path):
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def run_checks(folder: Path, mode: str | None = None):
+        manifest = read(folder / "manifest.json")
+        paths = set()
+        for item in manifest["files"]:
+            path = local_path(folder, item["path"])
+            paths.add(item["path"])
+            if not path.is_file():
+                problems.append(f"missing evidence file: {item['path']}")
+            elif hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]:
+                problems.append(f"file digest mismatch: {item['path']}")
+        events = []
+        if "events.jsonl" in paths:
+            events = [
+                json.loads(line)
+                for line in (folder / "events.jsonl").read_text(encoding="utf-8").splitlines()
+                if line
+            ]
+            if [event["seq"] for event in events] != list(range(len(events))):
+                problems.append("event sequence is not contiguous")
+        if mode == "replay" or manifest.get("mode") == "replay":
+            if any(
+                event.get("model_call_count", 0) or event.get("provider_response_id")
+                for event in events
+            ):
+                problems.append("replay contains model calls")
+        return manifest, events
+
+    try:
+        manifest = read(root / "manifest.json")
+        if "runs" not in manifest:
+            run_checks(root)
+            return problems
+        runs = manifest["runs"]
+        discovered_events = []
+        handoff_events = []
+        for name, relative in runs.items():
+            folder = local_path(root, relative)
+            run, events = run_checks(folder, "discovery" if name == "discovery" else "replay")
+            if name == "discovery":
+                discovered_events = events
+            if name == "replay-handoff":
+                handoff_events = events
+            if run.get("artifact_digest") != manifest.get("artifact_digest"):
+                problems.append(f"artifact digest mismatch: {name}")
+            if run.get("binding_digest") != manifest.get("binding_digest"):
+                problems.append(f"binding digest mismatch: {name}")
+        if not any(
+            e.get("provider_response_id") and e.get("model_id") and e.get("model_call_count", 0) > 0
+            for e in discovered_events
+        ):
+            problems.append("missing genuine discovery evidence")
+        owners = [e.get("current_owner") for e in handoff_events if e.get("kind") == "ownership"]
+        manual = any(
+            e.get("actor") == "human_operator" and e.get("kind") == "action" for e in handoff_events
+        )
+        if (
+            not manual
+            or "human_operator" not in owners
+            or "automation" not in owners[owners.index("human_operator") + 1 :]
+        ):
+            problems.append("missing genuine human handoff evidence")
+        if handoff_events:
+            for key in ("browser_id", "context_id", "page_id"):
+                identities = {e.get(key) for e in handoff_events}
+                if len(identities) != 1 or None in identities:
+                    problems.append(f"handoff changed or omitted {key}")
+        for required in ("replay-posted", "replay-not-found", "replay-checkpoint-failure"):
+            if required not in runs:
+                problems.append(f"missing required run: {required}")
+        if not manifest.get("different_replay_inputs"):
+            problems.append("missing different-input replay evidence")
+        artifact_path = local_path(root, manifest.get("capability", "capability.json"))
+        from .contracts import Capability
+        from .integrity import capability_digest
+
+        capability = Capability.model_validate(read(artifact_path))
+        if capability_digest(capability) != manifest.get("artifact_digest"):
+            problems.append("capability digest mismatch")
+        if not capability.validation:
+            problems.append("capability has no validation evidence")
+    except ValueError as error:
+        problems.append(
+            "unsafe evidence path"
+            if str(error) == "unsafe evidence path"
+            else "invalid evidence data"
+        )
+    except (OSError, KeyError, TypeError):
+        problems.append("missing or malformed evidence manifest")
+    return problems
+
+
 class EvidenceWriter:
     def __init__(
         self,
@@ -157,7 +261,7 @@ class EvidenceWriter:
         if isinstance(result, Success):
             return common | {
                 "observed_at": result.observed_at.isoformat(),
-                "payment": "[REDACTED_RUNTIME_VALUE]",
+                "payment": {"status": result.payment.status.value},
             }
         if isinstance(result, BusinessOutcome):
             return common | {

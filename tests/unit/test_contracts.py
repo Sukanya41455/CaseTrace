@@ -666,6 +666,21 @@ def test_authored_provenance_and_event_defaults_support_runtime_call_sites():
     assert event.ownership_generation == 0
 
 
+def test_run_event_accepts_ollama_tag_as_model_id():
+    event = RunEvent(
+        event_id="event-1",
+        run_id="run-1",
+        seq=0,
+        timestamp=datetime(2026, 9, 13, 12, tzinfo=UTC),
+        kind="action",
+        actor="automation",
+        summary="Local model selected one action",
+        model_id="qwen3.5:4b",
+    )
+
+    assert event.model_id == "qwen3.5:4b"
+
+
 def test_intervention_exposes_nonserialized_id_alias():
     intervention = Intervention.model_validate(
         {

@@ -193,3 +193,26 @@ def test_compiler_rejects_model_operations_outside_contract() -> None:
 
     with pytest.raises(CompilationError, match="schema"):
         compile_candidate(recording, raw, _bindings())
+
+
+def test_compiler_rejects_target_that_keeps_only_the_recorded_role() -> None:
+    proposal, recording = _candidate_and_recording()
+    raw = proposal.model_dump(mode="json")
+    raw["targets"][0]["strategies"][0]["name"] = {
+        "kind": "variable",
+        "name": "entry_url",
+        "field": None,
+    }
+
+    with pytest.raises(CompilationError, match="target differs semantically"):
+        compile_candidate(recording, raw, _bindings())
+
+
+def test_compiler_rejects_target_that_drops_recorded_context() -> None:
+    proposal, recording = _candidate_and_recording()
+    recording.operations[1].target = recording.operations[1].target.model_copy(
+        update={"container": "member-summary"}
+    )
+
+    with pytest.raises(CompilationError, match="target differs semantically"):
+        compile_candidate(recording, proposal.model_dump(mode="json"), _bindings())

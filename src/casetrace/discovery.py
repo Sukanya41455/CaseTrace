@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from .contracts import (
@@ -32,6 +34,7 @@ from .contracts import (
 )
 from .evidence import EvidenceWriter
 from .provider import (
+    CandidateDecision,
     ClickProposal,
     ConfirmProposal,
     FillProposal,
@@ -45,7 +48,6 @@ from .provider import (
 )
 from .session import SessionController
 from .surface import Surface
-
 
 MAX_DECISIONS = 40
 MAX_ACTIONS = 100
@@ -67,21 +69,42 @@ class DiscoveryRecording:
     goal: str
     initial_observation: Observation
     operations: list[RecordedOperation] = field(default_factory=list)
+    recognized_surface: Observation | None = None
+    provider_calls: dict[str, dict[str, object]] = field(default_factory=dict)
     sensitive_values: tuple[str, ...] = field(default_factory=tuple, repr=False)
 
     @property
     def event_ids(self) -> set[str]:
         return {operation.event_id for operation in self.operations}
 
+    def recognize_surface(self, observation: Observation) -> None:
+        if (
+            self.recognized_surface is None
+            and observation.vendor is not None
+            and observation.app_version is not None
+        ):
+            self.recognized_surface = observation
+
+    def record_provider_call(
+        self, purpose: str, decision: ModelDecision | CandidateDecision
+    ) -> None:
+        self.provider_calls[purpose] = {
+            "response_id": decision.response_id,
+            "model_id": decision.model_version,
+            "call_index": decision.call_index,
+        }
+
     def public_summary(self) -> dict[str, object]:
-        return {
+        surface = self.recognized_surface or self.initial_observation
+        summary = {
             "run_id": self.run_id,
             "goal": self.goal,
             "initial_surface": {
-                "vendor": self.initial_observation.vendor,
-                "app_version": self.initial_observation.app_version,
-                "surface_features": self.initial_observation.surface_features,
+                "vendor": surface.vendor,
+                "app_version": surface.app_version,
+                "surface_features": surface.surface_features,
             },
+            "provider_calls": self.provider_calls,
             "operations": [
                 {
                     "event_id": item.event_id,
@@ -93,6 +116,7 @@ class DiscoveryRecording:
                 for item in self.operations
             ],
         }
+        return _redact_public(summary, self.sensitive_values)
 
 
 async def discover(
@@ -135,10 +159,9 @@ async def discover(
             },
         }
     ]
-    seq = 0
 
     def emit(**fields: Any) -> str:
-        nonlocal seq
+        seq = evidence.next_seq
         event_id = fields.pop("event_id", f"event-{seq}")
         evidence.emit(
             RunEvent(
@@ -155,15 +178,15 @@ async def discover(
                 **fields,
             )
         )
-        seq += 1
         return event_id
 
+    recording: DiscoveryRecording | None = None
     try:
         async with asyncio.timeout(timeout_seconds):
             observation = await surface.observe()
             emit(
                 kind="run_started",
-                summary="Gemini UI discovery started with symbolic typed inputs",
+                summary="Model-guided UI discovery started with symbolic typed inputs",
                 observation_id=observation.observation_id,
             )
             recording = DiscoveryRecording(
@@ -172,6 +195,7 @@ async def discover(
                 initial_observation=observation,
                 sensitive_values=values,
             )
+            recording.recognize_surface(observation)
             action_count = 0
             for _ in range(max_decisions):
                 try:
@@ -188,6 +212,16 @@ async def discover(
                         "provider request failed",
                     ) from error
                 if isinstance(decision.proposal, FinishProposal):
+                    recording.record_provider_call("finish", decision)
+                    emit(
+                        kind="checkpoint",
+                        summary="Model requested candidate compilation",
+                        observation_id=observation.observation_id,
+                        provider_response_id=decision.response_id,
+                        model_id=decision.model_version,
+                        model_call_count=decision.call_index,
+                    )
+                    _persist_recording(recording, evidence.run_dir)
                     if not recording.operations:
                         raise RunStopped(
                             FailureCode.MODEL_ERROR,
@@ -195,10 +229,18 @@ async def discover(
                             "observed executable operations",
                             "model finished before acting",
                         )
+                    if not _has_executable_goal_confirmation(recording, observation):
+                        raise RunStopped(
+                            FailureCode.CHECKPOINT_FAILED,
+                            None,
+                            "fresh executable payment confirmation on the "
+                            "transaction detail screen",
+                            "UI goal was not confirmed",
+                        )
                     from .compiler import compile_candidate
 
                     try:
-                        proposal = await provider.propose_candidate(
+                        candidate = await provider.propose_candidate(
                             recording.public_summary(), Capability.model_json_schema()
                         )
                     except ProviderFailure as error:
@@ -208,7 +250,17 @@ async def discover(
                             "schema-valid candidate proposal",
                             "provider candidate request failed",
                         ) from error
-                    return compile_candidate(recording, proposal, bindings)
+                    recording.record_provider_call("candidate", candidate)
+                    emit(
+                        kind="checkpoint",
+                        summary="Model capability candidate received",
+                        observation_id=observation.observation_id,
+                        provider_response_id=candidate.response_id,
+                        model_id=candidate.model_version,
+                        model_call_count=candidate.call_index,
+                    )
+                    _persist_recording(recording, evidence.run_dir)
+                    return compile_candidate(recording, candidate.candidate, bindings)
                 action_count += 1
                 if action_count > max_actions:
                     raise RunStopped(
@@ -228,6 +280,7 @@ async def discover(
                     action_count,
                 )
                 observation = await surface.observe()
+                recording.recognize_surface(observation)
                 event_id = emit(
                     kind="action",
                     summary=_redact(decision.proposal.purpose, values),
@@ -249,6 +302,7 @@ async def discover(
                         target=target,
                     )
                 )
+                _persist_recording(recording, evidence.run_dir)
                 history.append(
                     {
                         "kind": "action_result",
@@ -265,12 +319,18 @@ async def discover(
                 "decision budget exhausted",
             )
     except TimeoutError as error:
+        if recording is not None:
+            _persist_recording(recording, evidence.run_dir)
         raise RunStopped(
             FailureCode.MODEL_LIMIT,
             None,
             "discovery within active deadline",
             "discovery deadline exhausted",
         ) from error
+    except BaseException:
+        if recording is not None:
+            _persist_recording(recording, evidence.run_dir)
+        raise
 
 
 async def _execute_proposal(
@@ -323,10 +383,14 @@ async def _execute_proposal(
             provenance=authored,
         )
         await session.execute(lambda: surface.act(step, args, variables))
-        return step, target, {
-            "summary": "bounded value source delivered; fresh sanitized observation captured",
-            "value_ref": value.model_dump(mode="json"),
-        }
+        return (
+            step,
+            target,
+            {
+                "summary": "bounded value source delivered; fresh sanitized observation captured",
+                "value_ref": value.model_dump(mode="json"),
+            },
+        )
     if isinstance(proposal, ClickProposal):
         step = ClickStep(
             step_id=f"discovery-{ordinal}",
@@ -413,6 +477,42 @@ def _redact(value: str, sensitive_values: tuple[str, ...]) -> str:
     for sensitive in sorted(sensitive_values, key=len, reverse=True):
         safe = safe.replace(sensitive, "[REDACTED]")
     return safe[:500]
+
+
+def _redact_public(value: Any, sensitive_values: tuple[str, ...]) -> Any:
+    if isinstance(value, str):
+        return _redact(value, sensitive_values)
+    if isinstance(value, dict):
+        return {str(key): _redact_public(item, sensitive_values) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact_public(item, sensitive_values) for item in value]
+    return value
+
+
+def _persist_recording(recording: DiscoveryRecording, run_dir: Path) -> None:
+    destination = Path(run_dir) / "recording.json"
+    temporary = destination.with_suffix(".json.tmp")
+    temporary.write_text(
+        json.dumps(recording.public_summary(), sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(destination)
+
+
+def _has_executable_goal_confirmation(
+    recording: DiscoveryRecording, observation: Observation
+) -> bool:
+    if observation.state.get("screen") != "transaction_detail":
+        return False
+    if not recording.operations:
+        return False
+    latest = recording.operations[-1]
+    return (
+        latest.resulting_observation_id == observation.observation_id
+        and isinstance(latest.step, AssertStep)
+        and latest.step.checkpoint_role is CheckpointRole.PAYMENT_IDENTITY_VERIFIED
+        and bool(latest.step.checks)
+    )
 
 
 def _provider_observation(observation: Observation) -> Observation:

@@ -165,11 +165,14 @@ async def test_abort_during_verification_cannot_restore_automation() -> None:
 @pytest.mark.asyncio
 async def test_transition_hook_closes_gate_before_resume_verification() -> None:
     states = []
+
     async def transition(state) -> None:
         states.append(state)
+
     async def verify() -> bool:
         assert states[-1] is SessionState.VERIFYING
         return True
+
     controller = SessionController(
         run_id="run-1", resume_verifier=verify, transition_handler=transition
     )

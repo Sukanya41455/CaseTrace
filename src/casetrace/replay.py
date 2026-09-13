@@ -45,7 +45,7 @@ from .contracts import (
 from .evidence import EvidenceWriter
 from .integrity import binding_digest, capability_digest
 from .matching import classify_payment
-from .session import SessionController
+from .session import SessionController, SessionState
 from .surface import Surface
 
 
@@ -64,6 +64,11 @@ class _Returned(Exception):
         self.result = result
 
 
+class _Handoff(Exception):
+    def __init__(self, handler):
+        self.handler = handler
+
+
 class ReplayRunner:
     def __init__(self, capability, args, bindings, surface, session, evidence):
         self.capability: Capability = capability
@@ -76,6 +81,18 @@ class ReplayRunner:
         self.current_step = None
         self.action_count = 0
         self.attempt_count = 0
+        self.retry_counts: dict[str, int] = defaultdict(int)
+        self.intervention_count = 0
+        self.reset_search()
+        self.metadata = {
+            "run_id": session.run_id,
+            "artifact_digest": capability_digest(capability),
+            "binding_digest": binding_digest(bindings),
+            "evidence_refs": ["events.jsonl"],
+        }
+
+    def reset_search(self):
+        self.variables = {"entry_url": self.bindings.origin + "/"}
         self.accounts: set[str] | None = None
         self.account_collections: list[list] = []
         self.accounts_complete = False
@@ -85,12 +102,70 @@ class ReplayRunner:
         self.details: dict[str, list[PaymentRecord]] = defaultdict(list)
         self.fields: list[tuple[str, dict]] = []
         self.page_reads: list[set[tuple[str, str]]] = []
-        self.metadata = {
-            "run_id": session.run_id,
-            "artifact_digest": capability_digest(capability),
-            "binding_digest": binding_digest(bindings),
-            "evidence_refs": ["events.jsonl"],
-        }
+
+    async def run(self):
+        loop = asyncio.get_running_loop()
+        active_remaining = self.capability.limits.active_timeout_seconds
+        human_remaining = self.capability.limits.human_timeout_seconds
+        while True:
+            started = loop.time()
+            try:
+                async with asyncio.timeout(active_remaining):
+                    await self.sequence(self.capability.steps)
+                self.stop(expected="typed terminal result")
+            except _Handoff as handoff:
+                active_remaining -= loop.time() - started
+                started = loop.time()
+                await self.handoff(handoff.handler, human_remaining)
+                human_remaining -= loop.time() - started
+                self.reset_search()
+
+    async def handoff(self, handler, remaining):
+        root = self.capability.steps[0]
+        if not (
+            isinstance(root, NavigateStep)
+            and root.checkpoint
+            and root.checks
+            and root.url.kind == "variable"
+            and root.url.name == "entry_url"
+        ):
+            self.stop(expected="declared read-only entry checkpoint for restart")
+        if self.intervention_count >= self.capability.limits.max_interventions:
+            self.stop(handler.failure_code, "bounded human interventions")
+        self.intervention_count += 1
+        ids = (self.session.browser_id, self.session.context_id, self.session.page_id)
+        try:
+            async with asyncio.timeout(remaining):
+                intervention = await self.session.request_handoff(
+                    handler.failure_code.value, self.current_step
+                )
+                self.emit("recovery", "Declared handler requested human recovery")
+                while True:
+                    if self.session.state == SessionState.CANCELLED:
+                        self.stop(FailureCode.CANCELLED, "operator did not abort")
+                    if ids != (
+                        self.session.browser_id,
+                        self.session.context_id,
+                        self.session.page_id,
+                    ):
+                        self.stop(FailureCode.SESSION_LOST, "same browser session during recovery")
+                    current = self.session.intervention
+                    if (
+                        self.session.state == SessionState.AUTOMATION
+                        and current is not None
+                        and current.id == intervention.id
+                        and current.state == "resumed"
+                        and self.session.ownership_generation > intervention.ownership_generation
+                    ):
+                        self.emit(
+                            "checkpoint",
+                            "Verified same-session resume; restarting entry checkpoint",
+                        )
+                        return
+                    await asyncio.sleep(0.02)
+        except TimeoutError:
+            await self.session.abort()
+            self.stop(FailureCode.HANDOFF_TIMEOUT, "human recovery within time budget")
 
     def stop(self, code=FailureCode.CHECKPOINT_FAILED, expected="verified UI checkpoint"):
         raise RunStopped(code, self.current_step, expected, "required evidence unavailable")
@@ -163,6 +238,18 @@ class ReplayRunner:
             self.stop(FailureCode.UNSUPPORTED_VERSION, "supported visible vendor and app version")
         if not set(self.capability.required_surface_features) <= set(observation.surface_features):
             self.stop(FailureCode.UNSUPPORTED_SURFACE, "required surface features")
+        handlers = [
+            handler
+            for handler in self.capability.handlers
+            if handler.disposition != "retry" and await self.check(handler.detector)
+        ]
+        if len(handlers) > 1:
+            self.stop(FailureCode.UNKNOWN_STATE, "one declared recovery handler")
+        if handlers:
+            handler = handlers[0]
+            if handler.disposition == "handoff":
+                raise _Handoff(handler)
+            self.stop(handler.failure_code, "declared failure detector absent")
         if observation.state.get("dialog_present"):
             self.stop(FailureCode.UNKNOWN_STATE, "recognized non-dialog state")
         return observation
@@ -181,35 +268,8 @@ class ReplayRunner:
         for step in steps:
             self.current_step = step.step_id
             before = await self.observation(allow_blank=isinstance(step, NavigateStep))
-            for handler in self.capability.handlers:
-                if await self.check(handler.detector):
-                    # Recovery is never inferred from an unmatched screen or arbitrary exception.
-                    self.stop(
-                        handler.failure_code, f"handler {handler.handler_id} requires recovery"
-                    )
-            if isinstance(step, (NavigateStep, FillStep, ClickStep)):
-                self.action_count += 1
-                if self.action_count > self.capability.limits.max_ui_actions:
-                    self.stop(FailureCode.SEARCH_LIMIT_EXCEEDED, "bounded UI actions")
-                async with asyncio.timeout(self.capability.limits.action_timeout_seconds):
-                    await self.session.execute(
-                        lambda: self.surface.act(step, self.args, self.variables)
-                    )
-                await self.observation()
-                self.emit("action", f"Executed declared {step.kind}")
-            elif isinstance(step, ReadStep):
-                async with asyncio.timeout(self.capability.limits.action_timeout_seconds):
-                    value = await self.session.execute(
-                        lambda: self.surface.read(step, self.args, self.variables)
-                    )
-                after = await self.observation()
-                if before.state.get("page_fingerprint") != after.state.get("page_fingerprint"):
-                    self.stop(expected="unchanged page during read")
-                self.variables[step.store_as] = value
-                self.consume(step, value, after)
-                self.emit(
-                    "observation", "Read declared visible data", observation_id=after.observation_id
-                )
+            if isinstance(step, (NavigateStep, FillStep, ClickStep, ReadStep)):
+                await self.primitive(step, before)
             elif isinstance(step, AssertStep):
                 await self.checks([step.predicate])
             elif isinstance(step, BranchStep):
@@ -240,9 +300,74 @@ class ReplayRunner:
                 await self.checks(step.checks)
                 raise _Returned(self.terminal(step))
             self.current_step = step.step_id
-            await self.checks(step.checks)
+            if not isinstance(step, (NavigateStep, FillStep, ClickStep, ReadStep)):
+                await self.checks(step.checks)
             if step.checkpoint:
                 self.emit("checkpoint", "Declared checkpoint passed")
+
+    async def primitive(self, step, before):
+        while True:
+            parent_variables = self.variables.copy()
+            try:
+                async with asyncio.timeout(self.capability.limits.action_timeout_seconds):
+                    if isinstance(step, ReadStep):
+                        value = await self.session.execute(
+                            lambda: self.surface.read(step, self.args, self.variables)
+                        )
+                    else:
+                        self.action_count += 1
+                        if self.action_count > self.capability.limits.max_ui_actions:
+                            self.stop(FailureCode.SEARCH_LIMIT_EXCEEDED, "bounded UI actions")
+                        await self.session.execute(
+                            lambda: self.surface.act(
+                                step.model_copy(update={"checks": []}), self.args, self.variables
+                            )
+                        )
+                    after = await self.observation()
+                    if isinstance(step, ReadStep):
+                        if before.state.get("page_fingerprint") != after.state.get(
+                            "page_fingerprint"
+                        ):
+                            self.stop(expected="unchanged page during read")
+                        self.variables[step.store_as] = value
+                    await self.checks(step.checks)
+                break
+            except (TimeoutError, RunStopped) as error:
+                self.variables = parent_variables
+                if isinstance(error, RunStopped) and error.code not in {
+                    FailureCode.TIMEOUT,
+                    FailureCode.CHECKPOINT_FAILED,
+                }:
+                    raise
+                handlers = [
+                    handler
+                    for handler in self.capability.handlers
+                    if handler.disposition == "retry" and await self.check(handler.detector)
+                ]
+                if len(handlers) != 1:
+                    raise
+                handler = handlers[0]
+                count = self.retry_counts[handler.handler_id]
+                if (
+                    count >= handler.max_attempts
+                    or self.attempt_count >= self.capability.limits.max_retries
+                ):
+                    raise
+                backoff = handler.backoff_ms or self.capability.limits.retry_backoff_ms
+                if count >= len(backoff):
+                    raise
+                self.retry_counts[handler.handler_id] += 1
+                self.attempt_count += 1
+                self.emit("recovery", "Retrying declared read-only primitive")
+                await asyncio.sleep(backoff[count] / 1000)
+                before = await self.observation(allow_blank=isinstance(step, NavigateStep))
+        if isinstance(step, ReadStep):
+            self.consume(step, value, after)
+            self.emit(
+                "observation", "Read declared visible data", observation_id=after.observation_id
+            )
+        else:
+            self.emit("action", f"Executed declared {step.kind}")
 
     def current_fields(self, fingerprint):
         merged = {}
@@ -289,6 +414,7 @@ class ReplayRunner:
                 self.stop(expected="payment rows inside bounded pagination")
             if len(value) > self.capability.limits.max_rows_per_page:
                 self.stop(FailureCode.SEARCH_LIMIT_EXCEEDED, "bounded rows")
+            self.records[step.step_id]  # Empty reads are part of the coverage proof too.
             for row in value:
                 record = self.record(
                     row
@@ -361,7 +487,10 @@ class ReplayRunner:
             self.action_count += 1
             if self.action_count > self.capability.limits.max_ui_actions:
                 self.stop(FailureCode.SEARCH_LIMIT_EXCEEDED, "bounded UI actions")
-            await self.session.execute(lambda: self.surface.act(click, self.args, self.variables))
+            async with asyncio.timeout(self.capability.limits.action_timeout_seconds):
+                await self.session.execute(
+                    lambda click=click: self.surface.act(click, self.args, self.variables)
+                )
             self.emit("action", "Advanced declared pagination target")
         self.stop(FailureCode.SEARCH_LIMIT_EXCEEDED, "exhausted source within page limit")
 
@@ -395,6 +524,11 @@ class ReplayRunner:
                 **self.metadata,
             )
         if isinstance(step.result, PaymentDecisionBindings):
+            if not (
+                self.records.keys() <= set(step.result.record_steps)
+                and self.details.keys() <= set(step.result.detail_steps)
+            ):
+                self.stop(expected="decision bindings include every executed payment read")
             rows = [record for key in step.result.record_steps for record in self.records[key]]
             details = [record for key in step.result.detail_steps for record in self.details[key]]
         else:
@@ -416,7 +550,10 @@ class ReplayRunner:
             )
         assert isinstance(decision, MatchDecision)
         matched = decision.records[0]
-        semantic = lambda record: record.model_dump(exclude={"source", "observation_id"})
+
+        def semantic(record):
+            return record.model_dump(exclude={"source", "observation_id"})
+
         candidates = [
             record
             for record in details
@@ -455,9 +592,7 @@ async def replay(
             runner.validate_seal()
         surface.bind_query(args)
         surface.set_targets(capability.targets)
-        async with asyncio.timeout(capability.limits.active_timeout_seconds):
-            await runner.sequence(capability.steps)
-        runner.stop(expected="typed terminal result")
+        await runner.run()
     except _Returned as returned:
         result = returned.result
     except (RunStopped, TimeoutError, ValidationError, KeyError, TypeError, ValueError) as error:

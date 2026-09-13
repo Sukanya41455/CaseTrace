@@ -80,7 +80,7 @@
           {% for row in rows %}
             <tr>
               <td>{{ row.direction }}</td><td>{{ row.amount }}</td><td>{{ row.currency }}</td><td>{{ row.transaction_date }}</td><td>{{ row.reference }}</td><td>{{ row.status }}</td><td>{{ row.description }}</td>
-              <td><a class="button" href="/bank/members/{{ member_id }}/accounts/{{ account_id }}/transactions/{{ row.reference }}?source={{ source }}">View</a></td>
+              <td><a class="button" href="/bank/members/{{ member_id }}/accounts/{{ account_id }}/transactions/{{ row.reference }}?{{ detail_query }}">View</a></td>
             </tr>
           {% else %}
             <tr><td colspan="8">No activity on this page</td></tr>

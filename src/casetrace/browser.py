@@ -154,11 +154,20 @@ _RECORDING_JS = """
   if (globalThis.__casetraceInstalled) return;
   globalThis.__casetraceInstalled = true;
   globalThis.__casetraceHumanControl = false;
-  for (const type of ['click', 'input', 'change']) {
+  globalThis.__casetraceOwnershipGeneration = -1;
+  globalThis.__casetraceSetOwnership = state => {
+    if (state.generation < globalThis.__casetraceOwnershipGeneration) return;
+    globalThis.__casetraceOwnershipGeneration = state.generation;
+    globalThis.__casetraceHumanControl = state.enabled;
+  };
+  globalThis.__casetraceOwnership().then(globalThis.__casetraceSetOwnership);
+  for (const type of ['pointerdown', 'click', 'keydown', 'beforeinput', 'input',
+                       'change', 'paste', 'drop', 'submit']) {
     addEventListener(type, event => {
       if (!event.isTrusted) return;
       const el = event.target;
-      if (el.__casetraceApprovedAction) return;
+      if (el.__casetraceApprovedAction ||
+          (event.submitter && event.submitter.__casetraceApprovedAction)) return;
       const meta = {
         event_type: type,
         role: el.getAttribute && el.getAttribute('role') || el.tagName.toLowerCase(),
@@ -220,9 +229,14 @@ class BrowserSurface:
         self._latest_observation_id: str | None = None
         self._sensitive_values: set[str] = set()
         self._fingerprint_salt = uuid4().bytes
+        self._human_control = False
+        self._native_dialog_present = False
+        self._ownership_generation = 0
+        self._ownership_lock = asyncio.Lock()
         self.browser_id = f"browser-{uuid4().hex}"
         self.context_id = f"context-{uuid4().hex}"
         self.page_id = f"page-{uuid4().hex}"
+        self._original_session = (browser, context, page)
 
     @classmethod
     async def launch(
@@ -244,7 +258,14 @@ class BrowserSurface:
                 if surface is not None:
                     await surface._record_manual_event(metadata)
 
+            def ownership(_source: object) -> dict[str, object]:
+                surface = holder.get("surface")
+                if surface is None:
+                    return {"enabled": False, "generation": 0}
+                return surface._ownership_state()
+
             await context.expose_binding("__casetraceRecord", record)
+            await context.expose_binding("__casetraceOwnership", ownership)
             await context.add_init_script(_RECORDING_JS)
             page = await context.new_page()
             surface = cls(
@@ -258,6 +279,12 @@ class BrowserSurface:
             )
             holder["surface"] = surface
             cdp = await context.new_cdp_session(page)
+            page.on("dialog", lambda _: setattr(surface, "_native_dialog_present", True))
+            cdp.on(
+                "Page.javascriptDialogClosed",
+                lambda _: setattr(surface, "_native_dialog_present", False),
+            )
+            await cdp.send("Page.enable")
 
             async def guard_response(event: dict[str, Any]) -> None:
                 request_id = event["requestId"]
@@ -270,21 +297,27 @@ class BrowserSurface:
                     status = event.get("responseStatusCode", 0)
                     request = event["request"]
                     method = "GET" if status in {301, 302, 303} else request["method"]
-                    if location and 300 <= status < 400 and not policy.request_allowed(
-                        urljoin(request["url"], location), method, "document"
+                    if (
+                        location
+                        and 300 <= status < 400
+                        and not policy.request_allowed(
+                            urljoin(request["url"], location), method, "document"
+                        )
                     ):
                         surface._blocked_request = True
-                        await cdp.send("Fetch.failRequest", {
-                            "requestId": request_id, "errorReason": "BlockedByClient"
-                        })
+                        await cdp.send(
+                            "Fetch.failRequest",
+                            {"requestId": request_id, "errorReason": "BlockedByClient"},
+                        )
                     else:
                         await cdp.send("Fetch.continueRequest", {"requestId": request_id})
                 except Exception:
                     surface._blocked_request = True
                     try:
-                        await cdp.send("Fetch.failRequest", {
-                            "requestId": request_id, "errorReason": "BlockedByClient"
-                        })
+                        await cdp.send(
+                            "Fetch.failRequest",
+                            {"requestId": request_id, "errorReason": "BlockedByClient"},
+                        )
                     except Exception:
                         pass  # Closing the controlled page invalidates paused requests.
 
@@ -348,9 +381,11 @@ class BrowserSurface:
                     surface_kind="web",
                     frame_path=frame_path,
                     strategies=[
-                        VisibleTextStrategy(text=label, exact=True) if info["tag"] == "p" else
-                        AdjacentControlStrategy(label=label, control_role=str(info["role"]))
-                        if info["adjacent"] else AccessibleRoleStrategy(
+                        VisibleTextStrategy(text=label, exact=True)
+                        if info["tag"] == "p"
+                        else AdjacentControlStrategy(label=label, control_role=str(info["role"]))
+                        if info["adjacent"]
+                        else AccessibleRoleStrategy(
                             role=str(info["role"]),
                             name=label,
                         )
@@ -419,7 +454,8 @@ class BrowserSurface:
                 tag = await target.locator.evaluate("el => el.tagName.toLowerCase()")
                 operation = (
                     (lambda: target.locator.select_option(rendered))
-                    if tag == "select" else (lambda: target.locator.fill(rendered))
+                    if tag == "select"
+                    else (lambda: target.locator.fill(rendered))
                 )
                 await self._approved_action(target.locator, operation)
             elif isinstance(step, ClickStep):
@@ -486,9 +522,12 @@ class BrowserSurface:
                 }""")
                 for label, value in re.findall(
                     r"(Member ID|Start date|End date|Amount|Currency|Direction|Reference)"
-                    r"\s*:?\s*([^;]+)", text
+                    r"\s*:?\s*([^;]+)",
+                    text,
                 ):
-                    result[_HEADER_KEYS[label.lower()]] = "" if value.strip() == "Any" else value.strip()
+                    result[_HEADER_KEYS[label.lower()]] = (
+                        "" if value.strip() == "Any" else value.strip()
+                    )
             if "source" in result:
                 result["source"] = result["source"].lower()
             result["observation_id"] = self._latest_observation_id or "observation-unrecorded"
@@ -610,10 +649,81 @@ class BrowserSurface:
         return {"snapshot": snapshot, "fully_masked": False}
 
     async def set_human_control(self, enabled: bool) -> None:
-        for frame, _ in self._visible_frames():
-            await frame.evaluate(
-                "enabled => { globalThis.__casetraceHumanControl = enabled; }", enabled
-            )
+        async with self._ownership_lock:
+            self._human_control = enabled
+            self._ownership_generation += 1
+            try:
+                async with asyncio.timeout(self.action_timeout_ms / 1000):
+                    for frame in self._page.frames:
+                        await frame.evaluate(
+                            "state => globalThis.__casetraceSetOwnership(state)",
+                            self._ownership_state(),
+                        )
+            except BaseException:
+                # Losing the document while changing ownership cannot leave a live open gate.
+                self._human_control = False
+                self._ownership_generation += 1
+                await self._context.close()
+                raise
+
+    def _ownership_state(self) -> dict[str, object]:
+        return {"enabled": self._human_control, "generation": self._ownership_generation}
+
+    async def verify_resume(
+        self,
+        *,
+        browser_id: str,
+        context_id: str,
+        page_id: str,
+        vendor: str,
+        app_version: str,
+    ) -> tuple[bool, str]:
+        """Validate the visible restart checkpoint without navigating or reading cookies."""
+        if (
+            (browser_id, context_id, page_id) != (self.browser_id, self.context_id, self.page_id)
+            or self._original_session != (self._browser, self._context, self._page)
+            or not self._browser.is_connected()
+            or self._context.browser is not self._browser
+            or self._page.context is not self._context
+            or self._page.is_closed()
+        ):
+            return False, "original browser session unavailable"
+        if self._human_control:
+            return False, "manual input must be quiesced before verification"
+        if self._native_dialog_present:
+            return False, "dialog requires intervention"
+        try:
+            await self._validate_open_surfaces()
+            if await self._visible_identity() != (vendor, app_version):
+                return False, "unsupported application identity"
+            frames = self._visible_frames()
+            for frame, _ in frames:
+                if (
+                    await frame.get_by_role("dialog").count()
+                    or await frame.get_by_role("alertdialog").count()
+                ):
+                    return False, "dialog requires intervention"
+            if await self._recognized_screen() != "member_search":
+                return False, "return to authenticated member search"
+            workspace = self._page.locator('iframe[title="Bank workspace"]')
+            if await workspace.count() != 1 or not await workspace.is_visible():
+                return False, "recognized bank workspace required"
+            if len(frames) != 2:
+                return False, "unexpected browser frame"
+            frame = next(frame for frame, _ in frames if frame is not self._page.main_frame)
+            if urlsplit(frame.url).path != "/bank/members":
+                return False, "return to member search root"
+            required = [
+                frame.get_by_text("Signed in as: demo-operator", exact=True),
+                frame.get_by_role("heading", name="Member search", exact=True),
+                frame.get_by_role("textbox", name="Member ID", exact=True),
+                frame.get_by_role("button", name="Search", exact=True),
+            ]
+            if not all([await item.count() == 1 and await item.is_visible() for item in required]):
+                return False, "authenticated member search required"
+            return True, "authenticated member search verified"
+        except Exception:
+            return False, "browser checkpoint unavailable"
 
     def manual_events(self) -> list[dict[str, str | bool]]:
         return list(self._manual_events)
@@ -689,9 +799,12 @@ class BrowserSurface:
                     "combobox": "select",
                     "button": "button,input[type=submit]",
                 }.get(strategy.control_role, "[role=none]")
-                candidates.append(scope.locator("th").filter(
-                    has_text=re.compile(r"^\s*" + re.escape(label) + r"\s*$")
-                ).locator("xpath=following-sibling::td[1]").locator(selector))
+                candidates.append(
+                    scope.locator("th")
+                    .filter(has_text=re.compile(r"^\s*" + re.escape(label) + r"\s*$"))
+                    .locator("xpath=following-sibling::td[1]")
+                    .locator(selector)
+                )
             elif isinstance(strategy, TableRelationStrategy):
                 row_value = self._resolve_text(strategy.row_value, args, variables)
                 table = scope
@@ -868,7 +981,7 @@ class BrowserSurface:
             return "account_activity"
         if "Transaction details" in headings:
             return "transaction_detail"
-        if "Sign in" in headings:
+        if "Sign in" in headings or "Demo sign in" in headings:
             return "authentication"
         return None
 

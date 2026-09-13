@@ -23,7 +23,7 @@ $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $PWD '.browser-cache'
 .\.venv\Scripts\python.exe -m playwright install chromium
 ```
 
-Keep `PLAYWRIGHT_BROWSERS_PATH` set to this project directory when running browser tests or CaseTrace. The browser download is a separate executable, not a system Python dependency.
+Add `PLAYWRIGHT_BROWSERS_PATH` to the project-root `.env`; `.env.example` shows the relative project-cache value. The CaseTrace CLI automatically loads all values from that file without replacing variables already set in the shell. The one-time Playwright installer above still needs the PowerShell assignment because it runs Playwright directly rather than through the CaseTrace CLI. The browser download is a separate executable, not a system Python dependency.
 
 Verify the interpreter and run development checks:
 
@@ -35,6 +35,17 @@ Verify the interpreter and run development checks:
 
 ## Discovery configuration
 
-The chosen provider is Gemini. Set `GEMINI_API_KEY` and `CASETRACE_MODEL` in a private `.env`; `.env.example` contains the configuration names. The current model was selected through a real function-call access check. Credentials, `.venv`, caches, temporary runs, and the private source brief are excluded from Git.
+Gemini is the primary discovery provider when `GEMINI_API_KEY` and `CASETRACE_MODEL` are set. A local Ollama fallback is enabled when `CASETRACE_OLLAMA_MODEL` is also set; the default configuration uses `qwen3.5:4b` at `http://127.0.0.1:11434` with a 16384-token context. After a Gemini connection, timeout, rate-limit, or server failure, the current discovery run stays on Ollama. Invalid model tool output remains a visible failure instead of triggering fallback. If both Gemini settings are blank, Ollama runs alone.
 
-Replay will not load `.env` or import the provider SDK. A real UI discovery, validated replay, and manual same-session handoff are still required before the completed system can be claimed. Connectivity probes and authored tests are not discovery evidence.
+`CASETRACE_DISCOVERY_TIMEOUT_SECONDS` controls the bounded end-to-end discovery deadline. The example uses 3600 seconds so CPU-only Ollama runs have time to complete; Gemini-only deployments can use a shorter value.
+
+Install and verify the local model before discovery:
+
+```powershell
+ollama pull qwen3.5:4b
+ollama run qwen3.5:4b "Reply with exactly: READY"
+```
+
+`.env.example` contains every configuration name. Credentials, `.venv`, caches, temporary runs, and the private source brief are excluded from Git.
+
+Replay loads the project `.env`, but it does not import the provider SDK or make model calls. A real UI discovery, validated replay, and manual same-session handoff are still required before the completed system can be claimed. Connectivity probes and authored tests are not discovery evidence.

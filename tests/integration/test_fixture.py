@@ -16,6 +16,22 @@ QUERY_ROOT = Path(__file__).parents[2] / "examples" / "queries"
 WINDOW = {"date_from": "2026-09-01", "date_to": "2026-09-07"}
 
 
+def test_expired_search_requires_login_before_showing_authenticated_identity() -> None:
+    with TestClient(create_fixture_app("expire-once")) as client:
+        client.get("/")
+        assert "Signed in as: demo-operator" in client.get("/bank/members").text
+        client.get("/bank/members/12345/accounts/SYNTH-DDA-A1/activity")
+        expired = client.get("/bank/members")
+        assert expired.status_code == 401
+        assert "Signed in as: demo-operator" not in expired.text
+        signed_in = client.post(
+            "/bank/login",
+            data={"username": "demo-operator", "password": "fixture-passphrase"},
+        )
+        assert signed_in.status_code == 200
+        assert "Signed in as: demo-operator" in signed_in.text
+
+
 def test_example_queries_capture_every_required_case() -> None:
     expected = {
         "posted.json": ("12345", "250.00"),
@@ -78,6 +94,10 @@ async def test_fixture_has_real_frame_and_complete_manual_search() -> None:
             ):
                 row = detail.get_by_role("row").filter(has_text=label)
                 assert await row.get_by_text(value, exact=True).count() == 1
+            await content.get_by_role("link", name="Back to activity", exact=True).click()
+            await content.get_by_text("Page 2 of 2", exact=True).wait_for()
+            assert await content.get_by_role("textbox", name="Amount").input_value() == "250.00"
+            assert await content.get_by_text("REF-POST-250", exact=True).count() == 1
             await browser.close()
 
 

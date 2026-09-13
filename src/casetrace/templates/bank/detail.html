@@ -27,7 +27,7 @@
         <tr><th>Activity source</th><td>{{ transaction.source|capitalize }}</td></tr>
         <tr><th>Description</th><td>{{ transaction.description }}</td></tr>
       </table>
-      <p><a href="/bank/members/{{ transaction.member_id }}/accounts/{{ transaction.account_id }}/activity?source={{ transaction.source }}">Back to activity</a></p>
+      <p><a href="/bank/members/{{ transaction.member_id }}/accounts/{{ transaction.account_id }}/activity?{{ return_query }}">Back to activity</a></p>
     {% else %}
       <p class="error" role="alert">{{ message }}</p>
     {% endif %}

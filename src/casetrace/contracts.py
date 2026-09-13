@@ -20,6 +20,9 @@ from pydantic import (
 )
 
 Identifier = Annotated[str, StringConstraints(min_length=1, max_length=100, pattern=r"^[\w.-]+$")]
+ModelIdentifier = Annotated[
+    str, StringConstraints(min_length=1, max_length=100, pattern=r"^[\w.:-]+$")
+]
 Digest = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 Money = Annotated[str, StringConstraints(pattern=r"^[0-9]+\.[0-9]{2}$")]
 
@@ -1038,7 +1041,7 @@ class RunEvent(ContractModel):
     step_id: Identifier | None = None
     observation_id: Identifier | None = None
     provider_response_id: Identifier | None = None
-    model_id: Identifier | None = None
+    model_id: ModelIdentifier | None = None
     model_call_count: int | None = Field(default=None, ge=0)
     browser_id: Identifier | None = None
     context_id: Identifier | None = None

@@ -21,6 +21,7 @@
   </head>
   <body>
     <h1>Member search</h1>
+    {% if signed_in %}<p class="summary">Signed in as: demo-operator</p>{% endif %}
     {% if message %}<p class="notice error" role="alert">{{ message }}</p>{% endif %}
     {% if stale_identity %}
       <p class="notice" role="status">Stale member scenario: displayed identity does not match the request.</p>

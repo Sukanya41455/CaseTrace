@@ -152,6 +152,17 @@
           ],
           "title": "Checkpoint"
         },
+        "checkpoint_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckpointRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "checks": {
           "items": {
             "$ref": "#/$defs/Predicate"
@@ -235,6 +246,17 @@
           ],
           "title": "Checkpoint"
         },
+        "checkpoint_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckpointRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "checks": {
           "items": {
             "$ref": "#/$defs/Predicate"
@@ -278,6 +300,222 @@
         "provenance"
       ],
       "title": "BranchStep",
+      "type": "object"
+    },
+    "BusinessOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_digest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Artifact Digest"
+        },
+        "binding_digest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Binding Digest"
+        },
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/CandidateSummary"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "code": {
+          "$ref": "#/$defs/BusinessOutcomeCode"
+        },
+        "coverage": {
+          "$ref": "#/$defs/SearchCoverage"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "kind": {
+          "const": "business_outcome",
+          "default": "business_outcome",
+          "title": "Kind",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "artifact_digest",
+        "binding_digest",
+        "evidence_refs",
+        "code",
+        "coverage"
+      ],
+      "title": "BusinessOutcome",
+      "type": "object"
+    },
+    "BusinessOutcomeCode": {
+      "enum": [
+        "NOT_FOUND",
+        "AMBIGUOUS",
+        "MEMBER_NOT_FOUND",
+        "NO_ACCOUNTS"
+      ],
+      "title": "BusinessOutcomeCode",
+      "type": "string"
+    },
+    "CandidateSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "account_alias": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Account Alias",
+          "type": "string"
+        },
+        "reference_alias": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Reference Alias",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/PaymentStatus"
+        }
+      },
+      "required": [
+        "account_alias",
+        "reference_alias",
+        "status"
+      ],
+      "title": "CandidateSummary",
+      "type": "object"
+    },
+    "Capability": {
+      "additionalProperties": false,
+      "properties": {
+        "capability_id": {
+          "const": "trace_incoming_payment",
+          "title": "Capability Id",
+          "type": "string"
+        },
+        "capability_version": {
+          "const": "0.1.0",
+          "title": "Capability Version",
+          "type": "string"
+        },
+        "handlers": {
+          "items": {
+            "$ref": "#/$defs/Handler"
+          },
+          "title": "Handlers",
+          "type": "array"
+        },
+        "input_schema": {
+          "$ref": "#/$defs/InputContract"
+        },
+        "limits": {
+          "$ref": "#/$defs/ExecutionLimits"
+        },
+        "output_schema": {
+          "$ref": "#/$defs/OutputContract"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "required_surface_features": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Required Surface Features",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/CapabilityScope"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "minItems": 1,
+          "title": "Steps",
+          "type": "array"
+        },
+        "supported_app_versions": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Supported App Versions",
+          "type": "array"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/TargetSpec"
+          },
+          "minItems": 1,
+          "title": "Targets",
+          "type": "array"
+        },
+        "validation": {
+          "items": {
+            "$ref": "#/$defs/ValidationReport"
+          },
+          "title": "Validation",
+          "type": "array"
+        },
+        "vendor": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Vendor",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "capability_id",
+        "capability_version",
+        "vendor",
+        "supported_app_versions",
+        "required_surface_features",
+        "input_schema",
+        "output_schema",
+        "scope",
+        "targets",
+        "steps",
+        "handlers",
+        "limits",
+        "provenance"
+      ],
+      "title": "Capability",
       "type": "object"
     },
     "CapabilityScope": {
@@ -327,6 +565,20 @@
       "title": "CapabilityScope",
       "type": "object"
     },
+    "CheckpointRole": {
+      "enum": [
+        "member_identity_verified",
+        "account_identity_verified",
+        "source_identity_verified",
+        "filters_verified",
+        "page_exhausted",
+        "source_exhausted",
+        "accounts_exhausted",
+        "payment_identity_verified"
+      ],
+      "title": "CheckpointRole",
+      "type": "string"
+    },
     "ClickStep": {
       "additionalProperties": false,
       "properties": {
@@ -343,6 +595,17 @@
             }
           ],
           "title": "Checkpoint"
+        },
+        "checkpoint_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckpointRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "checks": {
           "items": {
@@ -538,6 +801,112 @@
       "title": "ExecutionLimits",
       "type": "object"
     },
+    "Failure": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_digest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Artifact Digest"
+        },
+        "attempt_count": {
+          "minimum": 0,
+          "title": "Attempt Count",
+          "type": "integer"
+        },
+        "binding_digest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Binding Digest"
+        },
+        "code": {
+          "$ref": "#/$defs/FailureCode"
+        },
+        "current_step": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^[\\w.-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Current Step"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "expected_condition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expected Condition"
+        },
+        "kind": {
+          "const": "failure",
+          "default": "failure",
+          "title": "Kind",
+          "type": "string"
+        },
+        "observed_condition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observed Condition"
+        },
+        "run_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "artifact_digest",
+        "binding_digest",
+        "evidence_refs",
+        "code",
+        "current_step",
+        "expected_condition",
+        "observed_condition",
+        "attempt_count"
+      ],
+      "title": "Failure",
+      "type": "object"
+    },
     "FailureCode": {
       "enum": [
         "INVALID_INPUT",
@@ -576,6 +945,17 @@
             }
           ],
           "title": "Checkpoint"
+        },
+        "checkpoint_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckpointRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "checks": {
           "items": {
@@ -638,6 +1018,17 @@
             }
           ],
           "title": "Checkpoint"
+        },
+        "checkpoint_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckpointRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "checks": {
           "items": {
@@ -742,13 +1133,17 @@
           "minimum": 0,
           "title": "Max Attempts",
           "type": "integer"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
         }
       },
       "required": [
         "handler_id",
         "detector",
         "disposition",
-        "failure_code"
+        "failure_code",
+        "provenance"
       ],
       "title": "Handler",
       "type": "object"
@@ -760,6 +1155,12 @@
           "const": "PaymentQuery",
           "default": "PaymentQuery",
           "title": "Name",
+          "type": "string"
+        },
+        "schema_ref": {
+          "const": "#/$defs/PaymentQuery",
+          "default": "#/$defs/PaymentQuery",
+          "title": "Schema Ref",
           "type": "string"
         },
         "version": {
@@ -856,6 +1257,17 @@
           ],
           "title": "Checkpoint"
         },
+        "checkpoint_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckpointRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "checks": {
           "items": {
             "$ref": "#/$defs/Predicate"
@@ -915,6 +1327,12 @@
           "title": "Result Kinds",
           "type": "array"
         },
+        "schema_ref": {
+          "const": "#/$defs/RunResult",
+          "default": "#/$defs/RunResult",
+          "title": "Schema Ref",
+          "type": "string"
+        },
         "version": {
           "const": "1.0",
           "default": "1.0",
@@ -944,6 +1362,17 @@
             }
           ],
           "title": "Checkpoint"
+        },
+        "checkpoint_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckpointRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "checks": {
           "items": {
@@ -1004,6 +1433,240 @@
       ],
       "title": "PaginateStep",
       "type": "object"
+    },
+    "PaymentDecisionBindings": {
+      "additionalProperties": false,
+      "description": "Explicit reduction of observed reads after bounded traversal completes.",
+      "properties": {
+        "detail_steps": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[\\w.-]+$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Detail Steps",
+          "type": "array"
+        },
+        "kind": {
+          "const": "payment_decision",
+          "default": "payment_decision",
+          "title": "Kind",
+          "type": "string"
+        },
+        "record_steps": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[\\w.-]+$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Record Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "record_steps",
+        "detail_steps"
+      ],
+      "title": "PaymentDecisionBindings",
+      "type": "object"
+    },
+    "PaymentDirection": {
+      "enum": [
+        "CREDIT",
+        "DEBIT"
+      ],
+      "title": "PaymentDirection",
+      "type": "string"
+    },
+    "PaymentFieldBindings": {
+      "additionalProperties": false,
+      "properties": {
+        "account_id": {
+          "$ref": "#/$defs/VariableValue"
+        },
+        "amount": {
+          "$ref": "#/$defs/VariableValue"
+        },
+        "currency": {
+          "$ref": "#/$defs/VariableValue"
+        },
+        "direction": {
+          "$ref": "#/$defs/VariableValue"
+        },
+        "member_id": {
+          "$ref": "#/$defs/VariableValue"
+        },
+        "observation_id": {
+          "$ref": "#/$defs/VariableValue"
+        },
+        "reference": {
+          "$ref": "#/$defs/VariableValue"
+        },
+        "source": {
+          "$ref": "#/$defs/VariableValue"
+        },
+        "status": {
+          "$ref": "#/$defs/VariableValue"
+        },
+        "transaction_date": {
+          "$ref": "#/$defs/VariableValue"
+        }
+      },
+      "required": [
+        "member_id",
+        "account_id",
+        "reference",
+        "direction",
+        "amount",
+        "currency",
+        "transaction_date",
+        "status",
+        "source",
+        "observation_id"
+      ],
+      "title": "PaymentFieldBindings",
+      "type": "object"
+    },
+    "PaymentQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "pattern": "^[0-9]+\\.[0-9]{2}$",
+          "title": "Amount",
+          "type": "string"
+        },
+        "currency": {
+          "const": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "date_from": {
+          "format": "date",
+          "title": "Date From",
+          "type": "string"
+        },
+        "date_to": {
+          "format": "date",
+          "title": "Date To",
+          "type": "string"
+        },
+        "member_id": {
+          "pattern": "^\\d{5}$",
+          "title": "Member Id",
+          "type": "string"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        }
+      },
+      "required": [
+        "member_id",
+        "amount",
+        "currency",
+        "date_from",
+        "date_to"
+      ],
+      "title": "PaymentQuery",
+      "type": "object"
+    },
+    "PaymentRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "account_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Account Id",
+          "type": "string"
+        },
+        "amount": {
+          "pattern": "^[0-9]+\\.[0-9]{2}$",
+          "title": "Amount",
+          "type": "string"
+        },
+        "currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Currency",
+          "type": "string"
+        },
+        "direction": {
+          "$ref": "#/$defs/PaymentDirection"
+        },
+        "member_id": {
+          "pattern": "^\\d{5}$",
+          "title": "Member Id",
+          "type": "string"
+        },
+        "observation_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "reference": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Reference",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/PaymentSource"
+        },
+        "status": {
+          "$ref": "#/$defs/PaymentStatus"
+        },
+        "transaction_date": {
+          "format": "date",
+          "title": "Transaction Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "member_id",
+        "account_id",
+        "reference",
+        "direction",
+        "amount",
+        "currency",
+        "transaction_date",
+        "status",
+        "source",
+        "observation_id"
+      ],
+      "title": "PaymentRecord",
+      "type": "object"
+    },
+    "PaymentSource": {
+      "enum": [
+        "history",
+        "pending"
+      ],
+      "title": "PaymentSource",
+      "type": "string"
+    },
+    "PaymentStatus": {
+      "enum": [
+        "POSTED",
+        "PENDING",
+        "REVERSED"
+      ],
+      "title": "PaymentStatus",
+      "type": "string"
     },
     "Predicate": {
       "discriminator": {
@@ -1088,14 +1751,35 @@
         "exact_money",
         "date",
         "enum",
-        "table_rows"
+        "table_rows",
+        "fields"
       ],
       "title": "ReadParser",
+      "type": "string"
+    },
+    "ReadRole": {
+      "enum": [
+        "accounts",
+        "payment_rows",
+        "payment_detail"
+      ],
+      "title": "ReadRole",
       "type": "string"
     },
     "ReadStep": {
       "additionalProperties": false,
       "properties": {
+        "account": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "checkpoint": {
           "anyOf": [
             {
@@ -1109,6 +1793,17 @@
             }
           ],
           "title": "Checkpoint"
+        },
+        "checkpoint_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckpointRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "checks": {
           "items": {
@@ -1128,6 +1823,28 @@
         },
         "provenance": {
           "$ref": "#/$defs/Provenance"
+        },
+        "read_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReadRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "step_id": {
           "maxLength": 100,
@@ -1180,6 +1897,17 @@
           ],
           "title": "Checkpoint"
         },
+        "checkpoint_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckpointRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "checks": {
           "items": {
             "$ref": "#/$defs/Predicate"
@@ -1197,13 +1925,25 @@
           "$ref": "#/$defs/Provenance"
         },
         "result": {
-          "$ref": "#/$defs/ValueRef"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaymentDecisionBindings"
+            },
+            {
+              "$ref": "#/$defs/PaymentFieldBindings"
+            },
+            {
+              "$ref": "#/$defs/ValueRef"
+            }
+          ],
+          "title": "Result"
         },
         "result_kind": {
           "enum": [
             "success",
             "business_outcome",
-            "failure"
+            "failure",
+            "payment_decision"
           ],
           "title": "Result Kind",
           "type": "string"
@@ -1226,6 +1966,27 @@
       ],
       "title": "ReturnStep",
       "type": "object"
+    },
+    "RunResult": {
+      "discriminator": {
+        "mapping": {
+          "business_outcome": "#/$defs/BusinessOutcome",
+          "failure": "#/$defs/Failure",
+          "success": "#/$defs/Success"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Success"
+        },
+        {
+          "$ref": "#/$defs/BusinessOutcome"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ]
     },
     "ScenarioResult": {
       "additionalProperties": false,
@@ -1255,6 +2016,42 @@
         "evidence_refs"
       ],
       "title": "ScenarioResult",
+      "type": "object"
+    },
+    "SearchCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "accounts_complete": {
+          "title": "Accounts Complete",
+          "type": "boolean"
+        },
+        "accounts_searched": {
+          "minimum": 0,
+          "title": "Accounts Searched",
+          "type": "integer"
+        },
+        "pages_complete": {
+          "title": "Pages Complete",
+          "type": "boolean"
+        },
+        "pages_searched": {
+          "minimum": 0,
+          "title": "Pages Searched",
+          "type": "integer"
+        },
+        "sources_complete": {
+          "title": "Sources Complete",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "accounts_complete",
+        "sources_complete",
+        "pages_complete",
+        "accounts_searched",
+        "pages_searched"
+      ],
+      "title": "SearchCoverage",
       "type": "object"
     },
     "Step": {
@@ -1301,6 +2098,73 @@
           "$ref": "#/$defs/ReturnStep"
         }
       ]
+    },
+    "Success": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_digest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Artifact Digest"
+        },
+        "binding_digest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Binding Digest"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "kind": {
+          "const": "success",
+          "default": "success",
+          "title": "Kind",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "payment": {
+          "$ref": "#/$defs/PaymentRecord"
+        },
+        "run_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "pattern": "^[\\w.-]+$",
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "artifact_digest",
+        "binding_digest",
+        "evidence_refs",
+        "payment",
+        "observed_at"
+      ],
+      "title": "Success",
+      "type": "object"
     },
     "TableRelationStrategy": {
       "additionalProperties": false,
@@ -1583,107 +2447,8 @@
       "type": "object"
     }
   },
-  "additionalProperties": false,
-  "properties": {
-    "capability_id": {
-      "const": "trace_incoming_payment",
-      "title": "Capability Id",
-      "type": "string"
-    },
-    "capability_version": {
-      "const": "0.1.0",
-      "title": "Capability Version",
-      "type": "string"
-    },
-    "handlers": {
-      "items": {
-        "$ref": "#/$defs/Handler"
-      },
-      "title": "Handlers",
-      "type": "array"
-    },
-    "input_schema": {
-      "$ref": "#/$defs/InputContract"
-    },
-    "limits": {
-      "$ref": "#/$defs/ExecutionLimits"
-    },
-    "output_schema": {
-      "$ref": "#/$defs/OutputContract"
-    },
-    "provenance": {
-      "$ref": "#/$defs/Provenance"
-    },
-    "required_surface_features": {
-      "items": {
-        "type": "string"
-      },
-      "minItems": 1,
-      "title": "Required Surface Features",
-      "type": "array"
-    },
-    "schema_version": {
-      "const": "1.0",
-      "title": "Schema Version",
-      "type": "string"
-    },
-    "scope": {
-      "$ref": "#/$defs/CapabilityScope"
-    },
-    "steps": {
-      "items": {
-        "$ref": "#/$defs/Step"
-      },
-      "minItems": 1,
-      "title": "Steps",
-      "type": "array"
-    },
-    "supported_app_versions": {
-      "items": {
-        "type": "string"
-      },
-      "minItems": 1,
-      "title": "Supported App Versions",
-      "type": "array"
-    },
-    "targets": {
-      "items": {
-        "$ref": "#/$defs/TargetSpec"
-      },
-      "minItems": 1,
-      "title": "Targets",
-      "type": "array"
-    },
-    "validation": {
-      "items": {
-        "$ref": "#/$defs/ValidationReport"
-      },
-      "title": "Validation",
-      "type": "array"
-    },
-    "vendor": {
-      "maxLength": 100,
-      "minLength": 1,
-      "title": "Vendor",
-      "type": "string"
-    }
-  },
-  "required": [
-    "schema_version",
-    "capability_id",
-    "capability_version",
-    "vendor",
-    "supported_app_versions",
-    "required_surface_features",
-    "input_schema",
-    "output_schema",
-    "scope",
-    "targets",
-    "steps",
-    "handlers",
-    "limits",
-    "provenance"
-  ],
-  "title": "Capability",
-  "type": "object"
+  "$id": "urn:casetrace:schema:1.0",
+  "$ref": "#/$defs/Capability",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CaseTrace capability and calling contracts"
 }

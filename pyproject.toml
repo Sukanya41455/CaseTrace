@@ -10,9 +10,11 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi",
     "google-genai",
+    "httpx",
     "jinja2",
     "playwright",
     "pydantic>=2,<3",
+    "python-dotenv",
     "python-multipart",
     "typer",
     "uvicorn",
@@ -20,7 +22,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "httpx",
     "pytest",
     "pytest-asyncio",
     "ruff",
