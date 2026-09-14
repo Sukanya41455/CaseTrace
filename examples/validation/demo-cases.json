@@ -1,0 +1,67 @@
+[
+  {
+    "scenario": "test_fixture",
+    "params": {
+      "member_id": "12345",
+      "amount": "250.00",
+      "currency": "USD",
+      "date_from": "2026-09-01",
+      "date_to": "2026-09-07",
+      "reference": null
+    },
+    "expected_kind": "success",
+    "expected_status": "POSTED"
+  },
+  {
+    "scenario": "pending_payment",
+    "params": {
+      "member_id": "12345",
+      "amount": "125.00",
+      "currency": "USD",
+      "date_from": "2026-09-01",
+      "date_to": "2026-09-07",
+      "reference": null
+    },
+    "expected_kind": "success",
+    "expected_status": "PENDING"
+  },
+  {
+    "scenario": "reversed_payment",
+    "params": {
+      "member_id": "12345",
+      "amount": "80.00",
+      "currency": "USD",
+      "date_from": "2026-09-01",
+      "date_to": "2026-09-07",
+      "reference": null
+    },
+    "expected_kind": "success",
+    "expected_status": "REVERSED"
+  },
+  {
+    "scenario": "payment_not_found",
+    "params": {
+      "member_id": "12345",
+      "amount": "999.00",
+      "currency": "USD",
+      "date_from": "2026-09-01",
+      "date_to": "2026-09-07",
+      "reference": null
+    },
+    "expected_kind": "business_outcome",
+    "expected_code": "NOT_FOUND"
+  },
+  {
+    "scenario": "ambiguous_payment",
+    "params": {
+      "member_id": "12345",
+      "amount": "60.00",
+      "currency": "USD",
+      "date_from": "2026-09-01",
+      "date_to": "2026-09-07",
+      "reference": null
+    },
+    "expected_kind": "business_outcome",
+    "expected_code": "AMBIGUOUS"
+  }
+]

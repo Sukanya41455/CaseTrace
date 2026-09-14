@@ -199,10 +199,11 @@ async def discover(
             action_count = 0
             for _ in range(max_decisions):
                 try:
+                    provider_observation = _provider_observation(observation)
                     decision = await provider.decide(
-                        _provider_observation(observation),
+                        provider_observation,
                         history,
-                        discovery_tool_declarations(),
+                        discovery_tool_declarations(provider_observation),
                     )
                 except ProviderFailure as error:
                     raise RunStopped(

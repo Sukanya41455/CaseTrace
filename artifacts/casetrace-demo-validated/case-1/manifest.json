@@ -1,0 +1,15 @@
+{
+  "artifact_digest": "2b601ba4fa47941f1e285866630e2f780bfe6e6c5e5996de02afaee886849361",
+  "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
+  "files": [
+    {
+      "path": "events.jsonl",
+      "sha256": "cba9762b708ffbd73ec7dfe289169b40d95ba2dd05a02f32672a0dc8b3f4c868"
+    },
+    {
+      "path": "result.json",
+      "sha256": "e925ffefc7d2f022172465841e87595929fbe9fde96416c077de5551e353249f"
+    }
+  ],
+  "run_id": "case-1"
+}

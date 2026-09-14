@@ -354,6 +354,8 @@ class ObservedControl(ContractModel):
     label: str
     enabled: bool = True
     visible: bool = True
+    filled_by_automation: bool = False
+    has_value: bool = False
 
 
 class Observation(ContractModel):

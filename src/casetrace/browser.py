@@ -124,7 +124,9 @@ _CONTROL_INFO_JS = """
     href: tag === 'a' ? el.href : null,
     formAction: form ? form.action : null,
     formMethod: form ? (form.method || 'get').toUpperCase() : null,
-    enabled: !el.disabled && el.getAttribute('aria-disabled') !== 'true'
+    enabled: !el.disabled && el.getAttribute('aria-disabled') !== 'true',
+    filledByAutomation: el.dataset.casetraceFilled === 'true',
+    hasValue: (tag === 'input' || tag === 'select' || tag === 'textarea') && el.value !== ''
     ,adjacent: Boolean(adjacent && !explicit && !labelled)
   };
 }
@@ -400,6 +402,8 @@ class BrowserSurface:
                         label=label,
                         enabled=bool(info["enabled"]),
                         visible=True,
+                        filled_by_automation=bool(info["filledByAutomation"]),
+                        has_value=bool(info["hasValue"]),
                     )
                 )
         self._observed = {observation_id: entries}
@@ -458,6 +462,7 @@ class BrowserSurface:
                     else (lambda: target.locator.fill(rendered))
                 )
                 await self._approved_action(target.locator, operation)
+                await target.locator.evaluate("el => { el.dataset.casetraceFilled = 'true'; }")
             elif isinstance(step, ClickStep):
                 target = await self._resolve(step.target_id, args, variables)
                 self._policy.authorize(step, target.metadata)

@@ -1,0 +1,1436 @@
+{
+  "capability_id": "trace_incoming_payment",
+  "capability_version": "0.1.0",
+  "handlers": [
+    {
+      "backoff_ms": [],
+      "detector": {
+        "kind": "visible",
+        "target_id": "permission-denied"
+      },
+      "disposition": "fail",
+      "failure_code": "ACCESS_DENIED",
+      "handler_id": "permission-denied",
+      "max_attempts": 0,
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      }
+    },
+    {
+      "backoff_ms": [],
+      "detector": {
+        "kind": "visible",
+        "target_id": "timeout-condition"
+      },
+      "disposition": "fail",
+      "failure_code": "TIMEOUT",
+      "handler_id": "timeout-condition",
+      "max_attempts": 0,
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      }
+    }
+  ],
+  "input_schema": {
+    "name": "PaymentQuery",
+    "schema_ref": "#/$defs/PaymentQuery",
+    "version": "1.0"
+  },
+  "limits": {
+    "action_timeout_seconds": 10,
+    "active_timeout_seconds": 300,
+    "human_timeout_seconds": 600,
+    "max_accounts": 3,
+    "max_interventions": 2,
+    "max_pages_per_source": 3,
+    "max_retries": 2,
+    "max_rows_per_page": 10,
+    "max_ui_actions": 200,
+    "retry_backoff_ms": [
+      250,
+      1000
+    ]
+  },
+  "output_schema": {
+    "name": "RunResult",
+    "result_kinds": [
+      "success",
+      "business_outcome",
+      "failure"
+    ],
+    "schema_ref": "#/$defs/RunResult",
+    "version": "1.0"
+  },
+  "provenance": {
+    "event_ids": [],
+    "kind": "authored",
+    "validation_scenario": "test_fixture"
+  },
+  "required_surface_features": [
+    "frames"
+  ],
+  "schema_version": "1.0",
+  "scope": {
+    "currency": "USD",
+    "direction": "CREDIT",
+    "effect": "read_only",
+    "max_date_window_days": 31,
+    "sources": [
+      "history",
+      "pending"
+    ]
+  },
+  "steps": [
+    {
+      "checkpoint": "entry",
+      "checkpoint_role": null,
+      "checks": [
+        {
+          "kind": "visible",
+          "target_id": "member"
+        }
+      ],
+      "kind": "navigate",
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      },
+      "step_id": "step-31",
+      "url": {
+        "field": null,
+        "kind": "variable",
+        "name": "entry_url"
+      }
+    },
+    {
+      "checkpoint": null,
+      "checkpoint_role": null,
+      "checks": [
+        {
+          "kind": "visible",
+          "target_id": "member"
+        }
+      ],
+      "kind": "fill",
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      },
+      "step_id": "step-32",
+      "target_id": "member",
+      "value": {
+        "kind": "input",
+        "name": "member_id"
+      }
+    },
+    {
+      "checkpoint": null,
+      "checkpoint_role": null,
+      "checks": [
+        {
+          "kind": "visible",
+          "target_id": "accounts"
+        }
+      ],
+      "kind": "click",
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      },
+      "step_id": "step-33",
+      "target_id": "search"
+    },
+    {
+      "account": null,
+      "checkpoint": null,
+      "checkpoint_role": null,
+      "checks": [
+        {
+          "kind": "visible",
+          "target_id": "identity"
+        }
+      ],
+      "kind": "read",
+      "parser": "fields",
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      },
+      "read_role": null,
+      "source": null,
+      "step_id": "step-34",
+      "store_as": "identity",
+      "target_id": "identity"
+    },
+    {
+      "account": null,
+      "checkpoint": null,
+      "checkpoint_role": null,
+      "checks": [
+        {
+          "kind": "visible",
+          "target_id": "accounts"
+        }
+      ],
+      "kind": "read",
+      "parser": "table_rows",
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      },
+      "read_role": "accounts",
+      "source": null,
+      "step_id": "step-35",
+      "store_as": "accounts",
+      "target_id": "accounts"
+    },
+    {
+      "checkpoint": null,
+      "checkpoint_role": null,
+      "checks": [
+        {
+          "kind": "visible",
+          "target_id": "accounts"
+        }
+      ],
+      "collection": {
+        "field": null,
+        "kind": "variable",
+        "name": "accounts"
+      },
+      "item_variable": "account",
+      "kind": "for_each",
+      "max_items": 3,
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      },
+      "step_id": "step-38",
+      "steps": [
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "context"
+            }
+          ],
+          "kind": "click",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-36",
+          "target_id": "account-open"
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "context"
+            }
+          ],
+          "kind": "click",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-8",
+          "target_id": "history"
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "date_from"
+            }
+          ],
+          "kind": "fill",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-9",
+          "target_id": "date_from",
+          "value": {
+            "kind": "input",
+            "name": "date_from"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "date_to"
+            }
+          ],
+          "kind": "fill",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-10",
+          "target_id": "date_to",
+          "value": {
+            "kind": "input",
+            "name": "date_to"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "amount"
+            }
+          ],
+          "kind": "fill",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-11",
+          "target_id": "amount",
+          "value": {
+            "kind": "input",
+            "name": "amount"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "currency"
+            }
+          ],
+          "kind": "fill",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-12",
+          "target_id": "currency",
+          "value": {
+            "kind": "input",
+            "name": "currency"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "direction"
+            }
+          ],
+          "kind": "fill",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-13",
+          "target_id": "direction",
+          "value": {
+            "kind": "literal",
+            "sensitive": false,
+            "value": "CREDIT"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "applied"
+            }
+          ],
+          "kind": "click",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-14",
+          "target_id": "apply"
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [],
+          "kind": "paginate",
+          "max_pages": 3,
+          "next_target_id": "next",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-15",
+          "steps": [
+            {
+              "account": null,
+              "checkpoint": null,
+              "checkpoint_role": null,
+              "checks": [
+                {
+                  "kind": "visible",
+                  "target_id": "context"
+                }
+              ],
+              "kind": "read",
+              "parser": "fields",
+              "provenance": {
+                "event_ids": [],
+                "kind": "authored",
+                "validation_scenario": "test_fixture"
+              },
+              "read_role": null,
+              "source": null,
+              "step_id": "step-3",
+              "store_as": "history_context",
+              "target_id": "context"
+            },
+            {
+              "account": null,
+              "checkpoint": null,
+              "checkpoint_role": null,
+              "checks": [
+                {
+                  "kind": "visible",
+                  "target_id": "applied"
+                }
+              ],
+              "kind": "read",
+              "parser": "fields",
+              "provenance": {
+                "event_ids": [],
+                "kind": "authored",
+                "validation_scenario": "test_fixture"
+              },
+              "read_role": null,
+              "source": null,
+              "step_id": "step-4",
+              "store_as": "history_filters",
+              "target_id": "applied"
+            },
+            {
+              "account": {
+                "field": "account_id",
+                "kind": "variable",
+                "name": "account"
+              },
+              "checkpoint": null,
+              "checkpoint_role": null,
+              "checks": [
+                {
+                  "kind": "visible",
+                  "target_id": "history-table"
+                }
+              ],
+              "kind": "read",
+              "parser": "table_rows",
+              "provenance": {
+                "event_ids": [],
+                "kind": "authored",
+                "validation_scenario": "test_fixture"
+              },
+              "read_role": "payment_rows",
+              "source": {
+                "kind": "literal",
+                "sensitive": false,
+                "value": "history"
+              },
+              "step_id": "step-1",
+              "store_as": "history_rows",
+              "target_id": "history-table"
+            },
+            {
+              "checkpoint": null,
+              "checkpoint_role": null,
+              "checks": [
+                {
+                  "kind": "visible",
+                  "target_id": "context"
+                }
+              ],
+              "collection": {
+                "field": null,
+                "kind": "variable",
+                "name": "history_rows"
+              },
+              "item_variable": "history_row",
+              "kind": "for_each",
+              "max_items": 10,
+              "provenance": {
+                "event_ids": [],
+                "kind": "authored",
+                "validation_scenario": "test_fixture"
+              },
+              "step_id": "step-7",
+              "steps": [
+                {
+                  "checkpoint": null,
+                  "checkpoint_role": null,
+                  "checks": [
+                    {
+                      "kind": "visible",
+                      "target_id": "detail"
+                    }
+                  ],
+                  "kind": "click",
+                  "provenance": {
+                    "event_ids": [],
+                    "kind": "authored",
+                    "validation_scenario": "test_fixture"
+                  },
+                  "step_id": "step-5",
+                  "target_id": "history-view"
+                },
+                {
+                  "account": null,
+                  "checkpoint": null,
+                  "checkpoint_role": null,
+                  "checks": [
+                    {
+                      "kind": "visible",
+                      "target_id": "detail"
+                    }
+                  ],
+                  "kind": "read",
+                  "parser": "fields",
+                  "provenance": {
+                    "event_ids": [],
+                    "kind": "authored",
+                    "validation_scenario": "test_fixture"
+                  },
+                  "read_role": "payment_detail",
+                  "source": null,
+                  "step_id": "step-2",
+                  "store_as": "history_detail",
+                  "target_id": "detail"
+                },
+                {
+                  "checkpoint": null,
+                  "checkpoint_role": null,
+                  "checks": [
+                    {
+                      "kind": "visible",
+                      "target_id": "context"
+                    }
+                  ],
+                  "kind": "click",
+                  "provenance": {
+                    "event_ids": [],
+                    "kind": "authored",
+                    "validation_scenario": "test_fixture"
+                  },
+                  "step_id": "step-6",
+                  "target_id": "back-activity"
+                }
+              ]
+            }
+          ],
+          "until": {
+            "kind": "absent",
+            "target_id": "next"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "context"
+            }
+          ],
+          "kind": "click",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-23",
+          "target_id": "pending"
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "date_from"
+            }
+          ],
+          "kind": "fill",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-24",
+          "target_id": "date_from",
+          "value": {
+            "kind": "input",
+            "name": "date_from"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "date_to"
+            }
+          ],
+          "kind": "fill",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-25",
+          "target_id": "date_to",
+          "value": {
+            "kind": "input",
+            "name": "date_to"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "amount"
+            }
+          ],
+          "kind": "fill",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-26",
+          "target_id": "amount",
+          "value": {
+            "kind": "input",
+            "name": "amount"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "currency"
+            }
+          ],
+          "kind": "fill",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-27",
+          "target_id": "currency",
+          "value": {
+            "kind": "input",
+            "name": "currency"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "direction"
+            }
+          ],
+          "kind": "fill",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-28",
+          "target_id": "direction",
+          "value": {
+            "kind": "literal",
+            "sensitive": false,
+            "value": "CREDIT"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "applied"
+            }
+          ],
+          "kind": "click",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-29",
+          "target_id": "apply"
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [],
+          "kind": "paginate",
+          "max_pages": 3,
+          "next_target_id": "next",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-30",
+          "steps": [
+            {
+              "account": null,
+              "checkpoint": null,
+              "checkpoint_role": null,
+              "checks": [
+                {
+                  "kind": "visible",
+                  "target_id": "context"
+                }
+              ],
+              "kind": "read",
+              "parser": "fields",
+              "provenance": {
+                "event_ids": [],
+                "kind": "authored",
+                "validation_scenario": "test_fixture"
+              },
+              "read_role": null,
+              "source": null,
+              "step_id": "step-18",
+              "store_as": "pending_context",
+              "target_id": "context"
+            },
+            {
+              "account": null,
+              "checkpoint": null,
+              "checkpoint_role": null,
+              "checks": [
+                {
+                  "kind": "visible",
+                  "target_id": "applied"
+                }
+              ],
+              "kind": "read",
+              "parser": "fields",
+              "provenance": {
+                "event_ids": [],
+                "kind": "authored",
+                "validation_scenario": "test_fixture"
+              },
+              "read_role": null,
+              "source": null,
+              "step_id": "step-19",
+              "store_as": "pending_filters",
+              "target_id": "applied"
+            },
+            {
+              "account": {
+                "field": "account_id",
+                "kind": "variable",
+                "name": "account"
+              },
+              "checkpoint": null,
+              "checkpoint_role": null,
+              "checks": [
+                {
+                  "kind": "visible",
+                  "target_id": "pending-table"
+                }
+              ],
+              "kind": "read",
+              "parser": "table_rows",
+              "provenance": {
+                "event_ids": [],
+                "kind": "authored",
+                "validation_scenario": "test_fixture"
+              },
+              "read_role": "payment_rows",
+              "source": {
+                "kind": "literal",
+                "sensitive": false,
+                "value": "pending"
+              },
+              "step_id": "step-16",
+              "store_as": "pending_rows",
+              "target_id": "pending-table"
+            },
+            {
+              "checkpoint": null,
+              "checkpoint_role": null,
+              "checks": [
+                {
+                  "kind": "visible",
+                  "target_id": "context"
+                }
+              ],
+              "collection": {
+                "field": null,
+                "kind": "variable",
+                "name": "pending_rows"
+              },
+              "item_variable": "pending_row",
+              "kind": "for_each",
+              "max_items": 10,
+              "provenance": {
+                "event_ids": [],
+                "kind": "authored",
+                "validation_scenario": "test_fixture"
+              },
+              "step_id": "step-22",
+              "steps": [
+                {
+                  "checkpoint": null,
+                  "checkpoint_role": null,
+                  "checks": [
+                    {
+                      "kind": "visible",
+                      "target_id": "detail"
+                    }
+                  ],
+                  "kind": "click",
+                  "provenance": {
+                    "event_ids": [],
+                    "kind": "authored",
+                    "validation_scenario": "test_fixture"
+                  },
+                  "step_id": "step-20",
+                  "target_id": "pending-view"
+                },
+                {
+                  "account": null,
+                  "checkpoint": null,
+                  "checkpoint_role": null,
+                  "checks": [
+                    {
+                      "kind": "visible",
+                      "target_id": "detail"
+                    }
+                  ],
+                  "kind": "read",
+                  "parser": "fields",
+                  "provenance": {
+                    "event_ids": [],
+                    "kind": "authored",
+                    "validation_scenario": "test_fixture"
+                  },
+                  "read_role": "payment_detail",
+                  "source": null,
+                  "step_id": "step-17",
+                  "store_as": "pending_detail",
+                  "target_id": "detail"
+                },
+                {
+                  "checkpoint": null,
+                  "checkpoint_role": null,
+                  "checks": [
+                    {
+                      "kind": "visible",
+                      "target_id": "context"
+                    }
+                  ],
+                  "kind": "click",
+                  "provenance": {
+                    "event_ids": [],
+                    "kind": "authored",
+                    "validation_scenario": "test_fixture"
+                  },
+                  "step_id": "step-21",
+                  "target_id": "back-activity"
+                }
+              ]
+            }
+          ],
+          "until": {
+            "kind": "absent",
+            "target_id": "next"
+          }
+        },
+        {
+          "checkpoint": null,
+          "checkpoint_role": null,
+          "checks": [
+            {
+              "kind": "visible",
+              "target_id": "accounts"
+            }
+          ],
+          "kind": "click",
+          "provenance": {
+            "event_ids": [],
+            "kind": "authored",
+            "validation_scenario": "test_fixture"
+          },
+          "step_id": "step-37",
+          "target_id": "back-member"
+        }
+      ]
+    },
+    {
+      "checkpoint": "decision",
+      "checkpoint_role": null,
+      "checks": [
+        {
+          "kind": "visible",
+          "target_id": "accounts"
+        }
+      ],
+      "kind": "return",
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      },
+      "result": {
+        "detail_steps": [
+          "step-2",
+          "step-17"
+        ],
+        "kind": "payment_decision",
+        "record_steps": [
+          "step-1",
+          "step-16"
+        ]
+      },
+      "result_kind": "payment_decision",
+      "step_id": "step-39"
+    }
+  ],
+  "supported_app_versions": [
+    "2026.09"
+  ],
+  "targets": [
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Member ID",
+          "role": "textbox"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "member"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Search",
+          "role": "button"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "search"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Deposit accounts",
+          "role": "table"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "accounts"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "exact": true,
+          "kind": "visible_text",
+          "text": "Member ID:"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "identity"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "exact": true,
+          "kind": "visible_text",
+          "text": "Applied filters"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "applied"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "exact": true,
+          "kind": "visible_text",
+          "text": "Permission denied"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "permission-denied"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "exact": true,
+          "kind": "visible_text",
+          "text": "Timeout scenario: activity did not reach a normal checkpoint."
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "timeout-condition"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": "Deposit accounts",
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "control_role": "link",
+          "header": "Account ID",
+          "kind": "table_relation",
+          "row_value": {
+            "field": "account_id",
+            "kind": "variable",
+            "name": "account"
+          }
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "account-open"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "control_role": "textbox",
+          "kind": "adjacent_control",
+          "label": "Start date"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "date_from"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "control_role": "textbox",
+          "kind": "adjacent_control",
+          "label": "End date"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "date_to"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "control_role": "textbox",
+          "kind": "adjacent_control",
+          "label": "Amount"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "amount"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Currency",
+          "role": "combobox"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "currency"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Direction",
+          "role": "combobox"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "direction"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Apply filters",
+          "role": "button"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "apply"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Verified account context",
+          "role": "table"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "context"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Next",
+          "role": "link"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "next"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Transaction details",
+          "role": "table"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "detail"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Back to activity",
+          "role": "link"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "back-activity"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Back to member",
+          "role": "link"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "back-member"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "History",
+          "role": "link"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "history"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "History activity",
+          "role": "table"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "history-table"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": "History activity",
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "control_role": "link",
+          "header": "Reference",
+          "kind": "table_relation",
+          "row_value": {
+            "field": "reference",
+            "kind": "variable",
+            "name": "history_row"
+          }
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "history-view"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Pending",
+          "role": "link"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "pending"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "kind": "accessible_role",
+          "name": "Pending activity",
+          "role": "table"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "pending-table"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": "Pending activity",
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "control_role": "link",
+          "header": "Reference",
+          "kind": "table_relation",
+          "row_value": {
+            "field": "reference",
+            "kind": "variable",
+            "name": "pending_row"
+          }
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "pending-view"
+    }
+  ],
+  "validation": [
+    {
+      "artifact_digest": "2b601ba4fa47941f1e285866630e2f780bfe6e6c5e5996de02afaee886849361",
+      "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
+      "scenario_results": [
+        {
+          "evidence_refs": [
+            "case-0/manifest.json"
+          ],
+          "passed": true,
+          "scenario": "test_fixture"
+        },
+        {
+          "evidence_refs": [
+            "case-1/manifest.json"
+          ],
+          "passed": true,
+          "scenario": "pending_payment"
+        },
+        {
+          "evidence_refs": [
+            "case-2/manifest.json"
+          ],
+          "passed": true,
+          "scenario": "reversed_payment"
+        },
+        {
+          "evidence_refs": [
+            "case-3/manifest.json"
+          ],
+          "passed": true,
+          "scenario": "payment_not_found"
+        },
+        {
+          "evidence_refs": [
+            "case-4/manifest.json"
+          ],
+          "passed": true,
+          "scenario": "ambiguous_payment"
+        }
+      ],
+      "validated_at": "2026-09-14T15:18:39.908581Z"
+    }
+  ],
+  "vendor": "Northstar Synthetic Bank"
+}

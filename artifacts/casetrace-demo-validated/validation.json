@@ -1,0 +1,42 @@
+{
+  "artifact_digest": "2b601ba4fa47941f1e285866630e2f780bfe6e6c5e5996de02afaee886849361",
+  "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
+  "scenario_results": [
+    {
+      "evidence_refs": [
+        "case-0/manifest.json"
+      ],
+      "passed": true,
+      "scenario": "test_fixture"
+    },
+    {
+      "evidence_refs": [
+        "case-1/manifest.json"
+      ],
+      "passed": true,
+      "scenario": "pending_payment"
+    },
+    {
+      "evidence_refs": [
+        "case-2/manifest.json"
+      ],
+      "passed": true,
+      "scenario": "reversed_payment"
+    },
+    {
+      "evidence_refs": [
+        "case-3/manifest.json"
+      ],
+      "passed": true,
+      "scenario": "payment_not_found"
+    },
+    {
+      "evidence_refs": [
+        "case-4/manifest.json"
+      ],
+      "passed": true,
+      "scenario": "ambiguous_payment"
+    }
+  ],
+  "validated_at": "2026-09-14T15:18:39.908581Z"
+}

@@ -1,20 +1,216 @@
 from __future__ import annotations
 
 import json
+from inspect import signature
 
 import httpx
 import pytest
 
-from casetrace.contracts import Observation
+from casetrace.contracts import Observation, ObservedControl
 from casetrace.provider import (
     CandidateDecision,
     FallbackProvider,
+    FillProposal,
+    GeminiProvider,
     ModelDecision,
     NavigateProposal,
     OllamaProvider,
     ProviderFailure,
     discovery_tool_declarations,
 )
+
+
+def test_discovery_tools_do_not_offer_automated_filled_controls() -> None:
+    assert "observation" in signature(discovery_tool_declarations).parameters
+    observation = Observation(
+        observation_id="observation-1",
+        controls=[
+            ObservedControl(
+                target_handle="filled-member",
+                role="textbox",
+                label="Member ID",
+                filled_by_automation=True,
+            ),
+            ObservedControl(
+                target_handle="empty-amount",
+                role="textbox",
+                label="Amount",
+            ),
+            ObservedControl(
+                target_handle="restored-date",
+                role="textbox",
+                label="Start date",
+                has_value=True,
+            ),
+        ],
+    )
+
+    declarations = {
+        declaration.name: declaration.parameters_json_schema
+        for declaration in discovery_tool_declarations(observation)
+    }
+
+    assert declarations["fill_input"]["properties"]["target_handle"] == {
+        "type": "string",
+        "enum": ["empty-amount"],
+    }
+
+    only_filled = observation.model_copy(update={"controls": observation.controls[:1]})
+    names = {item.name for item in discovery_tool_declarations(only_filled)}
+    assert "fill_input" not in names
+    assert "fill_literal" not in names
+
+
+@pytest.mark.asyncio
+async def test_ollama_rejects_tool_call_that_was_not_declared() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "model": "qwen3.5:9b",
+                "message": {
+                    "tool_calls": [
+                        {
+                            "function": {
+                                "name": "fill_input",
+                                "arguments": {
+                                    "target_handle": "already-filled",
+                                    "input_name": "member_id",
+                                    "purpose": "Repeat a prior fill",
+                                },
+                            }
+                        }
+                    ]
+                },
+            },
+        )
+
+    observation = Observation(
+        observation_id="observation-1",
+        controls=[
+            ObservedControl(
+                target_handle="already-filled",
+                role="textbox",
+                label="Member ID",
+                filled_by_automation=True,
+            )
+        ],
+    )
+    async with httpx.AsyncClient(
+        base_url="http://127.0.0.1:11434",
+        transport=httpx.MockTransport(respond),
+    ) as client:
+        provider = OllamaProvider(
+            base_url="http://127.0.0.1:11434",
+            model="qwen3.5:9b",
+            context=16384,
+            client=client,
+        )
+        with pytest.raises(ProviderFailure) as caught:
+            await provider.decide(
+                observation,
+                [],
+                discovery_tool_declarations(observation),
+            )
+
+    assert caught.value.category == "ollama_tool_not_declared"
+
+
+def test_gemini_rejects_handle_outside_declared_enum() -> None:
+    observation = Observation(
+        observation_id="observation-1",
+        controls=[
+            ObservedControl(
+                target_handle="allowed-empty",
+                role="textbox",
+                label="Amount",
+            )
+        ],
+    )
+
+    with pytest.raises(ProviderFailure) as caught:
+        GeminiProvider._parse_call(
+            "fill_input",
+            {
+                "target_handle": "not-offered",
+                "input_name": "amount",
+                "purpose": "Use an invalid handle",
+            },
+            discovery_tool_declarations(observation),
+        )
+
+    assert caught.value.category == "gemini_tool_arguments_invalid"
+
+
+@pytest.mark.asyncio
+async def test_ollama_fill_input_tool_has_no_unused_literal_placeholder() -> None:
+    request_body = None
+
+    async def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal request_body
+        request_body = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "model": "qwen3.5:9b",
+                "message": {
+                    "tool_calls": [
+                        {
+                            "function": {
+                                "name": "fill_input",
+                                "arguments": {
+                                    "target_handle": "target-2-4",
+                                    "input_name": "member_id",
+                                    "purpose": "Use the symbolic member ID",
+                                },
+                            }
+                        }
+                    ]
+                },
+            },
+        )
+
+    async with httpx.AsyncClient(
+        base_url="http://127.0.0.1:11434",
+        transport=httpx.MockTransport(respond),
+    ) as client:
+        provider = OllamaProvider(
+            base_url="http://127.0.0.1:11434",
+            model="qwen3.5:9b",
+            context=16384,
+            client=client,
+        )
+        decision = await provider.decide(
+            Observation(observation_id="observation-1"),
+            [],
+            discovery_tool_declarations(),
+        )
+
+    assert decision.proposal == FillProposal(
+        target_handle="target-2-4",
+        value_kind="input",
+        input_name="member_id",
+        literal_value=None,
+        purpose="Use the symbolic member ID",
+    )
+    declarations = {
+        declaration.name: declaration.parameters_json_schema
+        for declaration in discovery_tool_declarations()
+    }
+    assert "fill" not in declarations
+    assert set(declarations["fill_input"]["properties"]) == {
+        "target_handle",
+        "input_name",
+        "purpose",
+    }
+    context = json.loads(request_body["messages"][1]["content"])
+    assert context["control_state_contract"] == {
+        "filled_by_automation": (
+            "true means the latest successful action already filled this control; "
+            "do not fill it again"
+        ),
+        "has_value": "true means the visible control already contains a value; do not fill it",
+    }
 
 
 @pytest.mark.asyncio

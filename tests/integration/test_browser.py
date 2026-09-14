@@ -295,6 +295,66 @@ async def test_observation_and_capture_are_sanitized(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_observation_reports_automated_fill_without_exposing_value() -> None:
+    with FixtureServer() as fixture:
+        surface = await BrowserSurface.launch(_policy(fixture.url), [], headless=True)
+        try:
+            query = _query()
+            surface.bind_query(query)
+            await surface.act(_navigate(), query, {"entry_url": fixture.url})
+            before = await surface.observe()
+            member = next(control for control in before.controls if control.label == "Member ID")
+            assert member.filled_by_automation is False
+
+            await surface.act(
+                FillStep(
+                    step_id="fill-member",
+                    target_id=member.target_handle,
+                    value=InputValue(name="member_id"),
+                    checks=[],
+                    checkpoint=None,
+                    provenance=_provenance(),
+                ),
+                query,
+                {},
+            )
+            after = await surface.observe()
+            member = next(control for control in after.controls if control.label == "Member ID")
+            assert member.filled_by_automation is True
+            assert query.member_id not in after.model_dump_json()
+        finally:
+            await surface.close()
+
+
+@pytest.mark.asyncio
+async def test_observation_reports_restored_value_without_exposing_it() -> None:
+    with FixtureServer() as fixture:
+        surface = await BrowserSurface.launch(_policy(fixture.url), [], headless=True)
+        try:
+            query = _query()
+            surface.bind_query(query)
+            await surface.act(
+                _navigate(),
+                query,
+                {
+                    "entry_url": (
+                        fixture.url
+                        + "/bank/members/12345/accounts/SYNTH-DDA-A1/activity"
+                        + "?source=history&amount=250.00"
+                    )
+                },
+            )
+            observation = await surface.observe()
+            amount = next(control for control in observation.controls if control.label == "Amount")
+
+            assert amount.has_value is True
+            assert amount.filled_by_automation is False
+            assert query.amount not in observation.model_dump_json()
+        finally:
+            await surface.close()
+
+
+@pytest.mark.asyncio
 async def test_detail_fields_are_read_from_visible_table() -> None:
     with FixtureServer() as fixture:
         surface = await BrowserSurface.launch(_policy(fixture.url), [], headless=True)

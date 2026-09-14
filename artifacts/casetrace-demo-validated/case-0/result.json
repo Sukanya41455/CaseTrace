@@ -1,0 +1,13 @@
+{
+  "artifact_digest": "2b601ba4fa47941f1e285866630e2f780bfe6e6c5e5996de02afaee886849361",
+  "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
+  "evidence_refs": [
+    "events.jsonl"
+  ],
+  "kind": "success",
+  "observed_at": "2026-09-14T15:16:10.221173+00:00",
+  "payment": {
+    "status": "POSTED"
+  },
+  "run_id": "case-0"
+}

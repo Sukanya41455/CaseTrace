@@ -2,6 +2,33 @@
 
 CaseTrace is being implemented as a Python system that discovers a payment-investigation workflow through a synthetic banking UI, saves a typed capability, and replays it without a model.
 
+## Run the demo
+
+The presentation path uses a prevalidated, explicitly authored capability so the demo is repeatable. It opens the synthetic bank, searches every declared account/source/page through the rendered UI, and returns a typed payment result. Replay does not load or contact a model provider.
+
+From PowerShell in the project root:
+
+```powershell
+.\scripts\demo.ps1
+```
+
+The default run opens a visible browser and uses `examples/queries/posted-new-member.json`, which is different from the payment used to author the traversal. The terminal prints a redacted result and the evidence directory. Use `.\scripts\demo.ps1 -Headless` for a background run.
+
+If the normal fixture is already running on port 8000, reuse it explicitly:
+
+```powershell
+.\scripts\demo.ps1 -UseExistingFixture
+```
+
+What to point out during the demo:
+
+1. The bank is a separate server-rendered application; CaseTrace operates only through its visible browser UI.
+2. The capability is typed, finite, read-only, and sealed to the exact tenant bindings and five passing validation cases.
+3. The replay searches History and Pending across all deposit accounts and pages before returning a result.
+4. Every replay event records `model_call_count: 0`; the result exposes only a redacted payment status.
+
+The optional live-discovery segment uses Ollama or Gemini and is slower and provider-dependent. It is not required for the reliable replay demo.
+
 ## Python environment
 
 All application and development dependencies belong to the project-local `.venv`. Python 3.12 or newer and [uv](https://docs.astral.sh/uv/getting-started/installation/) are required. The dependency versions are recorded in `uv.lock`.
