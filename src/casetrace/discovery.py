@@ -203,7 +203,7 @@ async def discover(
                     decision = await provider.decide(
                         provider_observation,
                         history,
-                        discovery_tool_declarations(provider_observation),
+                        discovery_tool_declarations(provider_observation, history),
                     )
                 except ProviderFailure as error:
                     raise RunStopped(

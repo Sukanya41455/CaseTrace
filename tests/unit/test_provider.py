@@ -104,6 +104,45 @@ async def test_groq_provider_returns_required_single_typed_tool_call() -> None:
 
 
 @pytest.mark.asyncio
+async def test_groq_provider_forces_the_only_declared_function() -> None:
+    request_body = None
+
+    async def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal request_body
+        request_body = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json=_groq_tool_response(
+                "navigate",
+                {"url_kind": "entry", "url": None, "purpose": "Open the application"},
+            ),
+        )
+
+    declarations = discovery_tool_declarations(
+        Observation(
+            observation_id="observation-initial",
+            vendor=None,
+            state={"screen": "unknown"},
+        )
+    )
+    async with httpx.AsyncClient(
+        base_url="https://api.groq.com/openai/v1",
+        transport=httpx.MockTransport(respond),
+    ) as client:
+        provider = GroqProvider(
+            api_key="test-key",
+            model="openai/gpt-oss-20b",
+            client=client,
+        )
+        await provider.decide(Observation(observation_id="observation-1"), [], declarations)
+
+    assert request_body["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "navigate"},
+    }
+
+
+@pytest.mark.asyncio
 async def test_groq_provider_marks_successful_private_reads_as_completed_progress() -> None:
     request_body = None
 
@@ -239,7 +278,7 @@ async def test_groq_decision_retries_one_failed_tool_generation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_groq_candidate_request_compacts_schema_annotations() -> None:
+async def test_groq_candidate_request_leaves_room_for_free_tier_completion() -> None:
     request_body = None
     request_size = None
 
@@ -293,7 +332,27 @@ async def test_groq_candidate_request_compacts_schema_annotations() -> None:
         return set()
 
     assert schema_metadata_keys(parameters) == set()
-    assert request_size < 25_000
+    assert set(parameters["required"]) == {
+        "schema_version",
+        "capability_id",
+        "capability_version",
+        "vendor",
+        "supported_app_versions",
+        "required_surface_features",
+        "input_schema",
+        "output_schema",
+        "scope",
+        "targets",
+        "steps",
+        "handlers",
+        "limits",
+        "provenance",
+    }
+    assert "$defs" not in parameters
+    assert request_body["max_completion_tokens"] == 4096
+    assert request_body["reasoning_effort"] == "low"
+    assert request_body["include_reasoning"] is False
+    assert request_size < 16_000
 
 
 @pytest.mark.asyncio
@@ -369,7 +428,7 @@ async def test_groq_candidate_stops_after_bounded_failed_generation_retry() -> N
             )
 
     assert caught.value.category == "groq_tool_generation_invalid"
-    assert attempts == 2
+    assert attempts == 3
 
 
 @pytest.mark.asyncio
@@ -631,8 +690,198 @@ def test_initial_discovery_only_offers_configured_entry_navigation() -> None:
     declarations = {item.name: item for item in discovery_tool_declarations(observation)}
     properties = declarations["navigate"].parameters_json_schema["properties"]
 
+    assert set(declarations) == {"navigate"}
     assert properties["url_kind"] == {"type": "string", "enum": ["entry"]}
     assert properties["url"] == {"type": "null"}
+
+
+def test_member_search_only_offers_fill_until_member_id_is_entered() -> None:
+    controls = [
+        ObservedControl(
+            target_handle="member-id",
+            role="textbox",
+            label="Member ID",
+        ),
+        ObservedControl(
+            target_handle="search",
+            role="button",
+            label="Search",
+        ),
+    ]
+    observation = Observation(
+        observation_id="observation-member-search",
+        vendor="Northstar Synthetic Bank",
+        state={"screen": "member_search"},
+        controls=controls,
+    )
+
+    names = {item.name for item in discovery_tool_declarations(observation)}
+    assert names == {"fill_input"}
+    declaration = discovery_tool_declarations(observation)[0]
+    properties = declaration.parameters_json_schema["properties"]
+    assert properties["target_handle"]["enum"] == ["member-id"]
+    assert properties["input_name"]["enum"] == ["member_id"]
+
+    filled = observation.model_copy(
+        update={
+            "controls": [
+                controls[0].model_copy(update={"filled_by_automation": True, "has_value": True}),
+                controls[1],
+            ]
+        }
+    )
+    names = {item.name for item in discovery_tool_declarations(filled)}
+    assert names == {"click"}
+
+
+def test_member_summary_only_offers_read_and_click() -> None:
+    observation = Observation(
+        observation_id="observation-member-summary",
+        vendor="Northstar Synthetic Bank",
+        state={"screen": "member_summary"},
+        controls=[
+            ObservedControl(
+                target_handle="accounts",
+                role="table",
+                label="Deposit accounts",
+            ),
+            ObservedControl(
+                target_handle="open-account",
+                role="link",
+                label="Open",
+            ),
+        ],
+    )
+
+    names = {item.name for item in discovery_tool_declarations(observation)}
+
+    assert names == {"read", "click"}
+
+
+def test_account_activity_offers_required_filters_in_order() -> None:
+    observation = Observation(
+        observation_id="observation-activity",
+        vendor="Northstar Synthetic Bank",
+        state={"screen": "account_activity"},
+        controls=[
+            ObservedControl(target_handle="amount", role="textbox", label="Amount"),
+            ObservedControl(target_handle="start", role="textbox", label="Start date"),
+            ObservedControl(target_handle="end", role="textbox", label="End date"),
+            ObservedControl(target_handle="currency", role="combobox", label="Currency"),
+            ObservedControl(target_handle="direction", role="combobox", label="Direction"),
+            ObservedControl(target_handle="reference", role="textbox", label="Reference"),
+            ObservedControl(target_handle="apply", role="button", label="Apply filters"),
+        ],
+    )
+
+    declarations = {item.name: item for item in discovery_tool_declarations(observation)}
+
+    assert set(declarations) == {"fill_input"}
+    properties = declarations["fill_input"].parameters_json_schema["properties"]
+    assert properties["target_handle"]["enum"] == ["amount"]
+    assert properties["input_name"]["enum"] == ["amount"]
+
+    direction = observation.model_copy(
+        update={
+            "controls": [
+                control.model_copy(update={"has_value": control.label != "Direction"})
+                for control in observation.controls
+            ]
+        }
+    )
+    declarations = {item.name: item for item in discovery_tool_declarations(direction)}
+    assert set(declarations) == {"fill_literal"}
+    properties = declarations["fill_literal"].parameters_json_schema["properties"]
+    assert properties["target_handle"]["enum"] == ["direction"]
+    assert properties["literal_value"]["enum"] == ["CREDIT"]
+
+
+def test_account_activity_offers_filter_then_matching_row() -> None:
+    base_controls = [
+        ObservedControl(
+            target_handle=label.lower().replace(" ", "-"),
+            role="textbox",
+            label=label,
+            has_value=True,
+        )
+        for label in ["Amount", "Start date", "End date", "Currency", "Direction"]
+    ]
+    unfiltered = Observation(
+        observation_id="observation-unfiltered",
+        vendor="Northstar Synthetic Bank",
+        state={"screen": "account_activity"},
+        controls=[
+            *base_controls,
+            ObservedControl(target_handle="apply", role="button", label="Apply filters"),
+            ObservedControl(target_handle="view-1", role="link", label="View [occurrence 1 of 4]"),
+            ObservedControl(target_handle="view-2", role="link", label="View [occurrence 2 of 4]"),
+        ],
+    )
+
+    declarations = {item.name: item for item in discovery_tool_declarations(unfiltered)}
+    assert set(declarations) == {"click"}
+    assert declarations["click"].parameters_json_schema["properties"]["target_handle"]["enum"] == [
+        "apply"
+    ]
+
+    filtered = unfiltered.model_copy(
+        update={
+            "controls": [
+                *base_controls,
+                ObservedControl(
+                    target_handle="activity-table", role="table", label="History activity"
+                ),
+                ObservedControl(target_handle="view-1", role="link", label="View"),
+            ]
+        }
+    )
+    declarations = {item.name: item for item in discovery_tool_declarations(filtered, [])}
+    assert set(declarations) == {"read"}
+    properties = declarations["read"].parameters_json_schema["properties"]
+    assert properties["target_handle"]["enum"] == ["activity-table"]
+    assert properties["parser"]["enum"] == ["table_rows"]
+    assert properties["store_as"]["enum"] == ["payment_rows"]
+
+    declarations = {
+        item.name: item
+        for item in discovery_tool_declarations(
+            filtered,
+            [
+                {
+                    "kind": "action_result",
+                    "action": "read",
+                    "observation_id": "observation-after-read",
+                }
+            ],
+        )
+    }
+    assert set(declarations) == {"click"}
+    assert declarations["click"].parameters_json_schema["properties"]["target_handle"]["enum"] == [
+        "view-1"
+    ]
+
+    empty_page = filtered.model_copy(
+        update={
+            "controls": [
+                *base_controls,
+                ObservedControl(
+                    target_handle="activity-table", role="table", label="History activity"
+                ),
+                ObservedControl(target_handle="next", role="link", label="Next"),
+            ]
+        }
+    )
+    declarations = {
+        item.name: item
+        for item in discovery_tool_declarations(
+            empty_page,
+            [{"kind": "action_result", "action": "read"}],
+        )
+    }
+    assert set(declarations) == {"click"}
+    assert declarations["click"].parameters_json_schema["properties"]["target_handle"]["enum"] == [
+        "next"
+    ]
 
 
 def test_discovery_tools_do_not_offer_automated_filled_controls() -> None:

@@ -236,14 +236,44 @@ def _compact_schema(value: object) -> object:
             "pattern",
             "title",
         }
-        return {
-            key: _compact_schema(item)
-            for key, item in value.items()
-            if key not in metadata
-        }
+        return {key: _compact_schema(item) for key, item in value.items() if key not in metadata}
     if isinstance(value, list):
         return [_compact_schema(item) for item in value]
     return value
+
+
+def _candidate_tool_schema(capability_schema: dict[str, object]) -> dict[str, object]:
+    properties = capability_schema.get("properties")
+    required = capability_schema.get("required")
+    if not isinstance(properties, dict) or not isinstance(required, list):
+        raise ValueError("capability schema must describe one object")
+
+    shallow_properties: dict[str, object] = {}
+    for name, raw_property in properties.items():
+        if not isinstance(raw_property, dict):
+            continue
+        property_type = raw_property.get("type")
+        if property_type == "array":
+            raw_items = raw_property.get("items")
+            item_type = raw_items.get("type") if isinstance(raw_items, dict) else None
+            shallow_properties[name] = {
+                "type": "array",
+                "items": {"type": item_type} if item_type in {"string", "number", "integer", "boolean"} else {"type": "object"},
+            }
+        elif property_type in {"string", "number", "integer", "boolean"}:
+            shallow_properties[name] = {
+                key: raw_property[key]
+                for key in ("type", "const", "enum")
+                if key in raw_property
+            }
+        else:
+            shallow_properties[name] = {"type": "object"}
+
+    return {
+        "type": "object",
+        "properties": shallow_properties,
+        "required": required,
+    }
 
 
 def _decision_context(observation: Observation, history: list[dict[str, object]]) -> str:
@@ -276,8 +306,19 @@ def _decision_context(observation: Observation, history: list[dict[str, object]]
 
 def discovery_tool_declarations(
     observation: Observation | None = None,
+    history: list[dict[str, object]] | None = None,
 ) -> list[types.FunctionDeclaration]:
     nullable_string = {"anyOf": [{"type": "string"}, {"type": "null"}]}
+    entry_only = (
+        observation is not None
+        and observation.vendor is None
+        and observation.state.get("screen") == "unknown"
+    )
+    navigation_kind = {
+        "type": "string",
+        "enum": ["entry"] if entry_only else ["entry", "literal"],
+    }
+    navigation_url = {"type": "null"} if entry_only else nullable_string
     checkpoint_role: dict[str, object]
     if observation is not None and observation.state.get("screen") == "transaction_detail":
         checkpoint_role = {
@@ -307,6 +348,12 @@ def discovery_tool_declarations(
         "type": "string",
         "description": "Brief action purpose; do not include private reasoning.",
     }
+    input_names = ["member_id", "amount", "currency", "date_from", "date_to", "reference"]
+    literal_values = ["CREDIT", "history", "pending"]
+    click_handles: list[str] | None = None
+    read_handles: list[str] | None = None
+    read_parsers = ["text", "exact_money", "date", "enum", "table_rows", "fields"]
+    read_store_names: list[str] | None = None
     fillable_handles = None
     if observation is not None:
         fillable_handles = [
@@ -318,85 +365,182 @@ def discovery_tool_declarations(
             and not control.filled_by_automation
             and not control.has_value
         ]
+        screen = observation.state.get("screen")
+        if screen == "member_search":
+            if fillable_handles:
+                fillable_handles = [
+                    control.target_handle
+                    for control in observation.controls
+                    if control.label == "Member ID"
+                ]
+                input_names = ["member_id"]
+                literal_values = []
+            else:
+                click_handles = [
+                    control.target_handle
+                    for control in observation.controls
+                    if control.label == "Search"
+                ]
+        elif screen == "member_summary":
+            click_handles = [
+                control.target_handle
+                for control in observation.controls
+                if control.label.startswith("Open")
+            ]
+            read_handles = [
+                control.target_handle
+                for control in observation.controls
+                if control.role == "table" and control.label == "Deposit accounts"
+            ]
+            read_parsers = ["table_rows"]
+            read_store_names = ["accounts"]
+        elif screen == "account_activity":
+            read_handles = [
+                control.target_handle
+                for control in observation.controls
+                if control.role == "table" and control.label.endswith("activity")
+            ]
+            read_parsers = ["table_rows"]
+            read_store_names = ["payment_rows"]
+            required_inputs = [
+                ("Amount", "amount"),
+                ("Start date", "date_from"),
+                ("End date", "date_to"),
+                ("Currency", "currency"),
+                ("Direction", None),
+            ]
+            required = next(
+                (
+                    (control, input_name)
+                    for label, input_name in required_inputs
+                    for control in observation.controls
+                    if control.label == label
+                    and not control.filled_by_automation
+                    and not control.has_value
+                ),
+                None,
+            )
+            if required is not None:
+                control, input_name = required
+                fillable_handles = [control.target_handle]
+                input_names = [input_name] if input_name is not None else []
+                literal_values = ["CREDIT"] if input_name is None else []
+            else:
+                fillable_handles = []
+                view_handles = [
+                    control.target_handle
+                    for control in observation.controls
+                    if control.label.startswith("View")
+                ]
+                click_handles = (
+                    [
+                        control.target_handle
+                        for control in observation.controls
+                        if control.label == "Apply filters"
+                    ]
+                    if len(view_handles) > 1
+                    else view_handles
+                    or [
+                        control.target_handle
+                        for control in observation.controls
+                        if control.label == "Next"
+                    ]
+                )
     fill_target: dict[str, object] = {"type": "string"}
     if fillable_handles is not None:
         fill_target["enum"] = fillable_handles
     fill_declarations = []
     if fillable_handles is None or fillable_handles:
-        fill_declarations = [
-            types.FunctionDeclaration(
-                name="fill_input",
-                description="Fill one visible control using one symbolic typed input value.",
-                parameters_json_schema=_strict_schema(
-                    {
-                        "target_handle": fill_target,
-                        "input_name": {
-                            "type": "string",
-                            "enum": [
-                                "member_id",
-                                "amount",
-                                "currency",
-                                "date_from",
-                                "date_to",
-                                "reference",
-                            ],
-                        },
-                        "purpose": purpose,
-                    }
-                ),
-            ),
-            types.FunctionDeclaration(
-                name="fill_literal",
-                description="Fill one visible control using one declared safe literal value.",
-                parameters_json_schema=_strict_schema(
-                    {
-                        "target_handle": fill_target,
-                        "literal_value": {
-                            "type": "string",
-                            "enum": ["CREDIT", "history", "pending"],
-                        },
-                        "purpose": purpose,
-                    }
-                ),
-            ),
-        ]
-    return [
-        types.FunctionDeclaration(
-            name="navigate",
-            description=(
-                "Navigate to the configured entry URL or propose a literal URL for policy review."
-            ),
-            parameters_json_schema=_strict_schema(
-                {
-                    "url_kind": {"type": "string", "enum": ["entry", "literal"]},
-                    "url": nullable_string,
-                    "purpose": purpose,
-                }
-            ),
+        if input_names:
+            fill_declarations.append(
+                types.FunctionDeclaration(
+                    name="fill_input",
+                    description="Fill one visible control using one symbolic typed input value.",
+                    parameters_json_schema=_strict_schema(
+                        {
+                            "target_handle": fill_target,
+                            "input_name": {
+                                "type": "string",
+                                "enum": input_names,
+                            },
+                            "purpose": purpose,
+                        }
+                    ),
+                )
+            )
+        if literal_values:
+            fill_declarations.append(
+                types.FunctionDeclaration(
+                    name="fill_literal",
+                    description="Fill one visible control using one declared safe literal value.",
+                    parameters_json_schema=_strict_schema(
+                        {
+                            "target_handle": fill_target,
+                            "literal_value": {
+                                "type": "string",
+                                "enum": literal_values,
+                            },
+                            "purpose": purpose,
+                        }
+                    ),
+                )
+            )
+    navigate_declaration = types.FunctionDeclaration(
+        name="navigate",
+        description=(
+            "Navigate to the configured entry URL or propose a literal URL for policy review."
         ),
+        parameters_json_schema=_strict_schema(
+            {
+                "url_kind": navigation_kind,
+                "url": navigation_url,
+                "purpose": purpose,
+            }
+        ),
+    )
+    click_declaration = types.FunctionDeclaration(
+        name="click",
+        description="Activate one visible policy-reviewed control by opaque handle.",
+        parameters_json_schema=_strict_schema(
+            {
+                "target_handle": {
+                    "type": "string",
+                    **({"enum": click_handles} if click_handles is not None else {}),
+                },
+                "purpose": purpose,
+            }
+        ),
+    )
+    read_declaration = types.FunctionDeclaration(
+        name="read",
+        description="Read a visible semantic element. Results remain private run-local state.",
+        parameters_json_schema=_strict_schema(
+            {
+                "target_handle": {
+                    "type": "string",
+                    **({"enum": read_handles} if read_handles is not None else {}),
+                },
+                "parser": {
+                    "type": "string",
+                    "enum": read_parsers,
+                },
+                "store_as": {
+                    "type": "string",
+                    **(
+                        {"enum": read_store_names}
+                        if read_store_names is not None
+                        else {"pattern": r"^[\w.-]+$"}
+                    ),
+                },
+                "purpose": purpose,
+            }
+        ),
+    )
+    declarations = [
+        navigate_declaration,
         *fill_declarations,
-        types.FunctionDeclaration(
-            name="click",
-            description="Activate one visible policy-reviewed control by opaque handle.",
-            parameters_json_schema=_strict_schema(
-                {"target_handle": {"type": "string"}, "purpose": purpose}
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="read",
-            description="Read a visible semantic element. Results remain private run-local state.",
-            parameters_json_schema=_strict_schema(
-                {
-                    "target_handle": {"type": "string"},
-                    "parser": {
-                        "type": "string",
-                        "enum": ["text", "exact_money", "date", "enum", "table_rows", "fields"],
-                    },
-                    "store_as": {"type": "string", "pattern": r"^[\w.-]+$"},
-                    "purpose": purpose,
-                }
-            ),
-        ),
+        click_declaration,
+        read_declaration,
         types.FunctionDeclaration(
             name="confirm",
             description=(
@@ -420,6 +564,20 @@ def discovery_tool_declarations(
             parameters_json_schema=_strict_schema({"purpose": purpose}),
         ),
     ]
+    if entry_only:
+        return [navigate_declaration]
+    if observation is not None and observation.state.get("screen") == "member_search":
+        return fill_declarations or [click_declaration]
+    if observation is not None and observation.state.get("screen") == "member_summary":
+        return [item for item in declarations if item.name in {"read", "click"}]
+    if observation is not None and observation.state.get("screen") == "account_activity":
+        if fill_declarations:
+            return fill_declarations
+        view_count = sum(control.label.startswith("View") for control in observation.controls)
+        read_completed = bool(history and history[-1].get("action") == "read")
+        names = {"click"} if view_count > 1 or read_completed else {"read"}
+        return [item for item in declarations if item.name in names]
+    return declarations
 
 
 def _ollama_tools(
@@ -499,7 +657,7 @@ class GroqProvider:
         await self._wait_for_rate_window()
         headers = {"Authorization": f"Bearer {self.api_key}"}
         request_payload = payload
-        for attempt in range(2):
+        for attempt in range(3):
             try:
                 if self._client is not None:
                     response = await self._client.post(
@@ -527,7 +685,7 @@ class GroqProvider:
                         and provider_error.get("failed_generation") is not None
                     )
                 if retry_failed_generation and failed_generation:
-                    if attempt == 0:
+                    if attempt < 2:
                         request_payload = dict(request_payload)
                         request_payload["temperature"] = 0
                         continue
@@ -586,6 +744,12 @@ class GroqProvider:
         tools: list[types.FunctionDeclaration],
     ) -> ModelDecision:
         self.calls += 1
+        tool_choice: str | dict[str, object] = "required"
+        if len(tools) == 1:
+            tool_choice = {
+                "type": "function",
+                "function": {"name": tools[0].name},
+            }
         result = await self._chat(
             {
                 "model": self.model,
@@ -601,7 +765,7 @@ class GroqProvider:
                     {"role": "user", "content": _decision_context(observation, history)},
                 ],
                 "tools": _ollama_tools(tools),
-                "tool_choice": "required",
+                "tool_choice": tool_choice,
                 "parallel_tool_calls": False,
                 "temperature": 0,
                 "max_completion_tokens": 256,
@@ -640,7 +804,7 @@ class GroqProvider:
         declaration = types.FunctionDeclaration(
             name="propose_candidate",
             description="Return one capability candidate matching the supplied schema.",
-            parameters_json_schema=_compact_schema(capability_schema),
+            parameters_json_schema=_candidate_tool_schema(capability_schema),
         )
         content = json.dumps(
             {
@@ -650,6 +814,51 @@ class GroqProvider:
                     "variable references. Keep validation empty; unobserved/generalized behavior "
                     "requires a validation scenario."
                 ),
+                "fixed_contract": {
+                    "schema_version": "1.0",
+                    "capability_id": "trace_incoming_payment",
+                    "capability_version": "0.1.0",
+                    "input_schema": {
+                        "name": "PaymentQuery",
+                        "version": "1.0",
+                        "schema_ref": "#/$defs/PaymentQuery",
+                    },
+                    "output_schema": {
+                        "name": "RunResult",
+                        "version": "1.0",
+                        "schema_ref": "#/$defs/RunResult",
+                        "result_kinds": ["success", "business_outcome", "failure"],
+                    },
+                    "scope": {
+                        "direction": "CREDIT",
+                        "currency": "USD",
+                        "sources": ["history", "pending"],
+                        "effect": "read_only",
+                        "max_date_window_days": 31,
+                    },
+                    "limits": {
+                        "max_accounts": 3,
+                        "max_pages_per_source": 3,
+                        "max_rows_per_page": 10,
+                        "max_ui_actions": 200,
+                        "active_timeout_seconds": 300,
+                        "action_timeout_seconds": 10,
+                        "max_retries": 2,
+                        "retry_backoff_ms": [250, 1000],
+                        "max_interventions": 2,
+                        "human_timeout_seconds": 600,
+                    },
+                    "handlers": [],
+                    "validation": [],
+                },
+                "candidate_rules": [
+                    "Copy vendor, supported app version, surface features, targets, and primitive step shapes from the recording.",
+                    "Every primitive step must have a non-empty visible-state check and cite its genuine event IDs.",
+                    "Generalized steps must cite grounding event IDs and name a validation scenario.",
+                    "Use bounded loops for repeated accounts, sources, pages, or rows.",
+                    "End every path with a typed return; use payment_decision with payment_rows and payment_detail read step IDs for the complete search.",
+                    "Required checkpoint roles are member_identity_verified, account_identity_verified, source_identity_verified, filters_verified, page_exhausted, source_exhausted, accounts_exhausted, and payment_identity_verified.",
+                ],
                 "recording": recording,
             },
             sort_keys=True,
@@ -676,6 +885,12 @@ class GroqProvider:
                 },
                 "parallel_tool_calls": False,
                 "temperature": 0.2,
+                "max_completion_tokens": 4096,
+                **(
+                    {"reasoning_effort": "low", "include_reasoning": False}
+                    if self._provider_name == "groq"
+                    else {}
+                ),
             },
             retry_failed_generation=True,
         )
