@@ -100,7 +100,11 @@ async def test_groq_provider_returns_required_single_typed_tool_call() -> None:
     assert request_body["tool_choice"] == "required"
     assert request_body["parallel_tool_calls"] is False
     assert request_body["temperature"] == 0
+    assert request_body["max_completion_tokens"] == 1024
     assert request_body["tools"][0]["function"]["name"] == "navigate"
+    assert "description" not in request_body["tools"][0]["function"]["parameters"]["properties"][
+        "purpose"
+    ]
 
 
 @pytest.mark.asyncio
@@ -186,6 +190,66 @@ async def test_groq_provider_marks_successful_private_reads_as_completed_progres
     context = json.loads(request_body["messages"][1]["content"])
     assert context["progress_contract"]["successful_action_must_advance"] is True
     assert context["progress_contract"]["private_value_shape_confirms_read"] is True
+
+
+@pytest.mark.asyncio
+async def test_groq_provider_bounds_stale_discovery_history() -> None:
+    request_body = None
+
+    async def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal request_body
+        request_body = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json=_groq_tool_response(
+                "navigate",
+                {"url_kind": "entry", "url": None, "purpose": "Open the application"},
+            ),
+        )
+
+    history = [{"kind": "goal", "summary": "Trace an incoming payment"}]
+    history.extend(
+        {
+            "kind": "action_result",
+            "action": "click",
+            "purpose": f"old action {index}",
+            "outcome": {"summary": "completed"},
+            "observation_id": f"observation-{index}",
+        }
+        for index in range(20)
+    )
+    history.extend(
+        {
+            "kind": "action_result",
+            "action": "read",
+            "purpose": f"recent action {index}",
+            "outcome": {"summary": "completed"},
+            "observation_id": f"observation-recent-{index}",
+        }
+        for index in range(8)
+    )
+
+    async with httpx.AsyncClient(
+        base_url="https://api.groq.com/openai/v1",
+        transport=httpx.MockTransport(respond),
+    ) as client:
+        provider = GroqProvider(
+            api_key="test-key",
+            model="qwen/qwen3.8-27b",
+            client=client,
+        )
+        await provider.decide(
+            Observation(observation_id="observation-current"),
+            history,
+            discovery_tool_declarations(),
+        )
+
+    context = json.loads(request_body["messages"][1]["content"])
+    assert context["history"][0]["kind"] == "goal"
+    assert context["history"][1]["kind"] == "history_summary"
+    assert context["history"][1]["omitted_action_results"] == 20
+    assert len(context["history"]) == 10
+    assert context["history"][-1]["purpose"] == "recent action 7"
 
 
 @pytest.mark.asyncio

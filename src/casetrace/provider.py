@@ -245,8 +245,12 @@ def _compact_schema(value: object) -> object:
 def _candidate_tool_schema(capability_schema: dict[str, object]) -> dict[str, object]:
     properties = capability_schema.get("properties")
     required = capability_schema.get("required")
-    if not isinstance(properties, dict) or not isinstance(required, list):
-        raise ValueError("capability schema must describe one object")
+    if not isinstance(properties, dict):
+        if capability_schema.get("type") != "object":
+            raise ValueError("capability schema must describe one object")
+        properties = {}
+    if not isinstance(required, list):
+        required = list(properties)
 
     shallow_properties: dict[str, object] = {}
     for name, raw_property in properties.items():
@@ -258,7 +262,11 @@ def _candidate_tool_schema(capability_schema: dict[str, object]) -> dict[str, ob
             item_type = raw_items.get("type") if isinstance(raw_items, dict) else None
             shallow_properties[name] = {
                 "type": "array",
-                "items": {"type": item_type} if item_type in {"string", "number", "integer", "boolean"} else {"type": "object"},
+                "items": (
+                    {"type": item_type}
+                    if item_type in {"string", "number", "integer", "boolean"}
+                    else {"type": "object"}
+                ),
             }
         elif property_type in {"string", "number", "integer", "boolean"}:
             shallow_properties[name] = {
@@ -277,10 +285,25 @@ def _candidate_tool_schema(capability_schema: dict[str, object]) -> dict[str, ob
 
 
 def _decision_context(observation: Observation, history: list[dict[str, object]]) -> str:
+    history_window = 8
+    bounded_history = history
+    if len(history) > history_window + 1:
+        bounded_history = [
+            history[0],
+            {
+                "kind": "history_summary",
+                "omitted_action_results": len(history) - history_window - 1,
+                "summary": (
+                    "Older action results are omitted because the latest observation is "
+                    "authoritative for the current UI state."
+                ),
+            },
+            *history[-history_window:],
+        ]
     return json.dumps(
         {
             "observation": observation.model_dump(mode="json"),
-            "history": history,
+            "history": bounded_history,
             "control_state_contract": {
                 "filled_by_automation": (
                     "true means the latest successful action already filled this control; "
@@ -582,14 +605,20 @@ def discovery_tool_declarations(
 
 def _ollama_tools(
     declarations: list[types.FunctionDeclaration],
+    *,
+    compact: bool = False,
 ) -> list[dict[str, object]]:
     return [
         {
             "type": "function",
             "function": {
                 "name": declaration.name,
-                "description": declaration.description,
-                "parameters": declaration.parameters_json_schema,
+                "description": declaration.description or "",
+                "parameters": (
+                    _compact_schema(declaration.parameters_json_schema)
+                    if compact
+                    else declaration.parameters_json_schema
+                ),
             },
         }
         for declaration in declarations
@@ -698,7 +727,7 @@ class GroqProvider:
                         delay = float(raw_delay)
                     except (TypeError, ValueError):
                         delay = 1.0
-                    await asyncio.sleep(min(max(delay, 0.0), 600.0))
+                    await asyncio.sleep(min(max(delay, 0.0), 900.0))
                     continue
                 raise ProviderFailure(_transport_category(error)) from None
             if not isinstance(result, dict):
@@ -764,11 +793,11 @@ class GroqProvider:
                     },
                     {"role": "user", "content": _decision_context(observation, history)},
                 ],
-                "tools": _ollama_tools(tools),
+                "tools": _ollama_tools(tools, compact=True),
                 "tool_choice": tool_choice,
                 "parallel_tool_calls": False,
                 "temperature": 0,
-                "max_completion_tokens": 256,
+                "max_completion_tokens": 1024,
             },
             retry_failed_generation=True,
         )
@@ -852,12 +881,29 @@ class GroqProvider:
                     "validation": [],
                 },
                 "candidate_rules": [
-                    "Copy vendor, supported app version, surface features, targets, and primitive step shapes from the recording.",
-                    "Every primitive step must have a non-empty visible-state check and cite its genuine event IDs.",
-                    "Generalized steps must cite grounding event IDs and name a validation scenario.",
+                    (
+                        "Copy vendor, supported app version, surface features, targets, and "
+                        "primitive step shapes from the recording."
+                    ),
+                    (
+                        "Every primitive step must have a non-empty visible-state check and "
+                        "cite its genuine event IDs."
+                    ),
+                    (
+                        "Generalized steps must cite grounding event IDs and name a validation "
+                        "scenario."
+                    ),
                     "Use bounded loops for repeated accounts, sources, pages, or rows.",
-                    "End every path with a typed return; use payment_decision with payment_rows and payment_detail read step IDs for the complete search.",
-                    "Required checkpoint roles are member_identity_verified, account_identity_verified, source_identity_verified, filters_verified, page_exhausted, source_exhausted, accounts_exhausted, and payment_identity_verified.",
+                    (
+                        "End every path with a typed return; use payment_decision with "
+                        "payment_rows and payment_detail read step IDs for the complete search."
+                    ),
+                    (
+                        "Required checkpoint roles are member_identity_verified, "
+                        "account_identity_verified, source_identity_verified, filters_verified, "
+                        "page_exhausted, source_exhausted, accounts_exhausted, and "
+                        "payment_identity_verified."
+                    ),
                 ],
                 "recording": recording,
             },
@@ -878,7 +924,7 @@ class GroqProvider:
                     },
                     {"role": "user", "content": content},
                 ],
-                "tools": _ollama_tools([declaration]),
+                "tools": _ollama_tools([declaration], compact=True),
                 "tool_choice": {
                     "type": "function",
                     "function": {"name": "propose_candidate"},
