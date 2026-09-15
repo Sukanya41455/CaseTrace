@@ -21,7 +21,7 @@ from pydantic import (
 
 Identifier = Annotated[str, StringConstraints(min_length=1, max_length=100, pattern=r"^[\w.-]+$")]
 ModelIdentifier = Annotated[
-    str, StringConstraints(min_length=1, max_length=100, pattern=r"^[\w.:-]+$")
+    str, StringConstraints(min_length=1, max_length=100, pattern=r"^[\w./:-]+$")
 ]
 Digest = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 Money = Annotated[str, StringConstraints(pattern=r"^[0-9]+\.[0-9]{2}$")]

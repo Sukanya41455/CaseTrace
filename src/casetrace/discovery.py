@@ -210,7 +210,7 @@ async def discover(
                         FailureCode.MODEL_ERROR,
                         None,
                         "one valid declared model tool call",
-                        "provider request failed",
+                        f"provider request failed: {error.category}",
                     ) from error
                 if isinstance(decision.proposal, FinishProposal):
                     recording.record_provider_call("finish", decision)
@@ -249,7 +249,7 @@ async def discover(
                             FailureCode.MODEL_ERROR,
                             None,
                             "schema-valid candidate proposal",
-                            "provider candidate request failed",
+                            f"provider candidate request failed: {error.category}",
                         ) from error
                     recording.record_provider_call("candidate", candidate)
                     emit(

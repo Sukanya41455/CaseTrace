@@ -172,6 +172,29 @@ class _ScriptedProvider:
         )
 
 
+class _DecisionFailureProvider(_ScriptedProvider):
+    async def decide(self, observation, history, tools):
+        raise ProviderFailure("transport_429")
+
+
+@pytest.mark.asyncio
+async def test_decision_failure_preserves_sanitized_provider_category(tmp_path) -> None:
+    with pytest.raises(RunStopped) as failure:
+        await discover(
+            "Trace an incoming payment",
+            _query(),
+            _NavigationSurface(),
+            SessionController("decision-failure-run"),
+            _DecisionFailureProvider([]),
+            EvidenceWriter(tmp_path, "decision-failure-run"),
+            bindings=None,
+            entry_url="http://127.0.0.1:8000",
+        )
+
+    assert failure.value.code is FailureCode.MODEL_ERROR
+    assert failure.value.observed == "provider request failed: transport_429"
+
+
 class _PolicySurface:
     def __init__(self) -> None:
         self.denied_destination_requests = 0
@@ -417,3 +440,38 @@ async def test_recording_attributes_finish_and_candidate_provider_calls(tmp_path
         "model_id": "scripted-test-provider",
         "call_index": 4,
     }
+
+
+class _CandidateFailureProvider(_ScriptedProvider):
+    async def propose_candidate(self, recording, schema):
+        raise ProviderFailure("transport_400")
+
+
+@pytest.mark.asyncio
+async def test_candidate_failure_preserves_sanitized_provider_category(tmp_path) -> None:
+    provider = _CandidateFailureProvider(
+        [
+            NavigateProposal(url_kind="entry", url=None, purpose="Open the application"),
+            ConfirmProposal(
+                target_handle="payment-detail",
+                checkpoint_role=CheckpointRole.PAYMENT_IDENTITY_VERIFIED,
+                purpose="Confirm payment detail",
+            ),
+            FinishProposal(purpose="Finish after confirmation"),
+        ]
+    )
+
+    with pytest.raises(RunStopped) as failure:
+        await discover(
+            "Trace an incoming payment",
+            _query(),
+            _ConfirmationSurface(),
+            SessionController("candidate-failure-run"),
+            provider,
+            EvidenceWriter(tmp_path, "candidate-failure-run"),
+            bindings=None,
+            entry_url="http://127.0.0.1:8000",
+        )
+
+    assert failure.value.code is FailureCode.MODEL_ERROR
+    assert failure.value.observed == "provider candidate request failed: transport_400"

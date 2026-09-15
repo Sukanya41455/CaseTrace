@@ -681,6 +681,21 @@ def test_run_event_accepts_ollama_tag_as_model_id():
     assert event.model_id == "qwen3.5:4b"
 
 
+def test_run_event_accepts_namespaced_hosted_model_id():
+    event = RunEvent(
+        event_id="event-1",
+        run_id="run-1",
+        seq=0,
+        timestamp=datetime(2026, 9, 15, 12, tzinfo=UTC),
+        kind="action",
+        actor="automation",
+        summary="Hosted model selected one action",
+        model_id="nex-agi/nex-n2.5-pro:free",
+    )
+
+    assert event.model_id == "nex-agi/nex-n2.5-pro:free"
+
+
 def test_intervention_exposes_nonserialized_id_alias():
     intervention = Intervention.model_validate(
         {
