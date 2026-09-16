@@ -1,0 +1,667 @@
+{
+  "goal": "Find the incoming payment described by the typed invocation, confirm its identity on the transaction detail screen, and compile the reusable bounded capability.",
+  "initial_surface": {
+    "app_version": "2026.09",
+    "surface_features": [
+      "web",
+      "frames",
+      "accessible_roles",
+      "table_relationships"
+    ],
+    "vendor": "Northstar Synthetic Bank"
+  },
+  "operations": [
+    {
+      "event_id": "event-1",
+      "observation_id": "observation-0",
+      "resulting_observation_id": "observation-1",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "navigate",
+        "provenance": {
+          "event_ids": [
+            "event-1"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-1",
+        "url": {
+          "field": null,
+          "kind": "variable",
+          "name": "entry_url"
+        }
+      },
+      "target": null
+    },
+    {
+      "event_id": "event-2",
+      "observation_id": "observation-1",
+      "resulting_observation_id": "observation-2",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "fill",
+        "provenance": {
+          "event_ids": [
+            "event-2"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-2",
+        "target_id": "target-2-4",
+        "value": {
+          "kind": "input",
+          "name": "member_id"
+        }
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "Member ID",
+            "role": "textbox"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-2-4"
+      }
+    },
+    {
+      "event_id": "event-3",
+      "observation_id": "observation-2",
+      "resulting_observation_id": "observation-3",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "click",
+        "provenance": {
+          "event_ids": [
+            "event-3"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-3",
+        "target_id": "target-3-5"
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "Search",
+            "role": "button"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-3-5"
+      }
+    },
+    {
+      "event_id": "event-4",
+      "observation_id": "observation-3",
+      "resulting_observation_id": "observation-4",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "click",
+        "provenance": {
+          "event_ids": [
+            "event-4"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-4",
+        "target_id": "target-4-6"
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "Open",
+            "role": "link"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-4-6"
+      }
+    },
+    {
+      "event_id": "event-5",
+      "observation_id": "observation-4",
+      "resulting_observation_id": "observation-5",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "fill",
+        "provenance": {
+          "event_ids": [
+            "event-5"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-5",
+        "target_id": "target-5-8",
+        "value": {
+          "kind": "input",
+          "name": "amount"
+        }
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "Amount",
+            "role": "textbox"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-5-8"
+      }
+    },
+    {
+      "event_id": "event-6",
+      "observation_id": "observation-5",
+      "resulting_observation_id": "observation-6",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "fill",
+        "provenance": {
+          "event_ids": [
+            "event-6"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-6",
+        "target_id": "target-6-9",
+        "value": {
+          "kind": "input",
+          "name": "date_from"
+        }
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "control_role": "textbox",
+            "kind": "adjacent_control",
+            "label": "Start date"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-6-9"
+      }
+    },
+    {
+      "event_id": "event-7",
+      "observation_id": "observation-6",
+      "resulting_observation_id": "observation-7",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "fill",
+        "provenance": {
+          "event_ids": [
+            "event-7"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-7",
+        "target_id": "target-7-10",
+        "value": {
+          "kind": "input",
+          "name": "date_to"
+        }
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "control_role": "textbox",
+            "kind": "adjacent_control",
+            "label": "End date"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-7-10"
+      }
+    },
+    {
+      "event_id": "event-8",
+      "observation_id": "observation-7",
+      "resulting_observation_id": "observation-8",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "fill",
+        "provenance": {
+          "event_ids": [
+            "event-8"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-8",
+        "target_id": "target-8-11",
+        "value": {
+          "kind": "input",
+          "name": "currency"
+        }
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "Currency",
+            "role": "combobox"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-8-11"
+      }
+    },
+    {
+      "event_id": "event-9",
+      "observation_id": "observation-8",
+      "resulting_observation_id": "observation-9",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "fill",
+        "provenance": {
+          "event_ids": [
+            "event-9"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-9",
+        "target_id": "target-9-12",
+        "value": {
+          "kind": "literal",
+          "sensitive": false,
+          "value": "CREDIT"
+        }
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "Direction",
+            "role": "combobox"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-9-12"
+      }
+    },
+    {
+      "event_id": "event-10",
+      "observation_id": "observation-9",
+      "resulting_observation_id": "observation-10",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "click",
+        "provenance": {
+          "event_ids": [
+            "event-10"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-10",
+        "target_id": "target-10-14"
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "Apply filters",
+            "role": "button"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-10-14"
+      }
+    },
+    {
+      "event_id": "event-11",
+      "observation_id": "observation-10",
+      "resulting_observation_id": "observation-11",
+      "step": {
+        "account": {
+          "field": null,
+          "kind": "variable",
+          "name": "account"
+        },
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "read",
+        "parser": "table_rows",
+        "provenance": {
+          "event_ids": [
+            "event-11"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "read_role": "payment_rows",
+        "source": {
+          "kind": "literal",
+          "sensitive": false,
+          "value": "history"
+        },
+        "step_id": "discovery-11",
+        "store_as": "payment_rows",
+        "target_id": "target-11-17"
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "History activity",
+            "role": "table"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-11-17"
+      }
+    },
+    {
+      "event_id": "event-12",
+      "observation_id": "observation-11",
+      "resulting_observation_id": "observation-12",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "click",
+        "provenance": {
+          "event_ids": [
+            "event-12"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-12",
+        "target_id": "target-12-18"
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "Next",
+            "role": "link"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-12-18"
+      }
+    },
+    {
+      "event_id": "event-13",
+      "observation_id": "observation-12",
+      "resulting_observation_id": "observation-13",
+      "step": {
+        "account": {
+          "field": null,
+          "kind": "variable",
+          "name": "account"
+        },
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "read",
+        "parser": "table_rows",
+        "provenance": {
+          "event_ids": [
+            "event-13"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "read_role": "payment_rows",
+        "source": {
+          "kind": "literal",
+          "sensitive": false,
+          "value": "history"
+        },
+        "step_id": "discovery-13",
+        "store_as": "payment_rows",
+        "target_id": "target-13-17"
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "History activity",
+            "role": "table"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-13-17"
+      }
+    },
+    {
+      "event_id": "event-14",
+      "observation_id": "observation-13",
+      "resulting_observation_id": "observation-14",
+      "step": {
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "click",
+        "provenance": {
+          "event_ids": [
+            "event-14"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-14",
+        "target_id": "target-14-18"
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "View",
+            "role": "link"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-14-18"
+      }
+    },
+    {
+      "event_id": "event-15",
+      "observation_id": "observation-14",
+      "resulting_observation_id": "observation-15",
+      "step": {
+        "account": null,
+        "checkpoint": null,
+        "checkpoint_role": null,
+        "checks": [],
+        "kind": "read",
+        "parser": "fields",
+        "provenance": {
+          "event_ids": [
+            "event-15"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "read_role": "payment_detail",
+        "source": null,
+        "step_id": "discovery-15",
+        "store_as": "payment_detail",
+        "target_id": "target-15-3"
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "Transaction details",
+            "role": "table"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-15-3"
+      }
+    },
+    {
+      "event_id": "event-16",
+      "observation_id": "observation-15",
+      "resulting_observation_id": "observation-16",
+      "step": {
+        "checkpoint": "checkpoint-16",
+        "checkpoint_role": "payment_identity_verified",
+        "checks": [
+          {
+            "kind": "visible",
+            "target_id": "target-16-3"
+          }
+        ],
+        "kind": "assert",
+        "predicate": {
+          "kind": "visible",
+          "target_id": "target-16-3"
+        },
+        "provenance": {
+          "event_ids": [
+            "event-16"
+          ],
+          "kind": "observed",
+          "validation_scenario": null
+        },
+        "step_id": "discovery-16"
+      },
+      "target": {
+        "anchor": null,
+        "cardinality": 1,
+        "container": null,
+        "frame_path": [
+          "content"
+        ],
+        "strategies": [
+          {
+            "kind": "accessible_role",
+            "name": "Transaction details",
+            "role": "table"
+          }
+        ],
+        "surface_kind": "web",
+        "target_id": "target-16-3"
+      }
+    }
+  ],
+  "provider_calls": {
+    "finish": {
+      "call_index": 17,
+      "model_id": "qwen3.5:9b",
+      "response_id": null
+    }
+  },
+  "run_id": "discovery"
+}

@@ -1,0 +1,69 @@
+{
+  "app_version": "2026.09",
+  "controls": [
+    {
+      "enabled": true,
+      "filled_by_automation": false,
+      "has_value": false,
+      "label": "CUSTOMER SERVICE",
+      "role": "heading",
+      "target_handle": "target-18-0",
+      "visible": true
+    },
+    {
+      "enabled": true,
+      "filled_by_automation": false,
+      "has_value": false,
+      "label": "Member search",
+      "role": "link",
+      "target_handle": "target-18-1",
+      "visible": true
+    },
+    {
+      "enabled": true,
+      "filled_by_automation": false,
+      "has_value": false,
+      "label": "Transaction details",
+      "role": "heading",
+      "target_handle": "target-18-2",
+      "visible": true
+    },
+    {
+      "enabled": true,
+      "filled_by_automation": false,
+      "has_value": false,
+      "label": "Transaction details",
+      "role": "table",
+      "target_handle": "target-18-3",
+      "visible": true
+    },
+    {
+      "enabled": true,
+      "filled_by_automation": false,
+      "has_value": false,
+      "label": "Back to activity",
+      "role": "link",
+      "target_handle": "target-18-4",
+      "visible": true
+    }
+  ],
+  "frames": [
+    "shell",
+    "transaction_detail"
+  ],
+  "observation_id": "observation-17",
+  "screen": "transaction_detail",
+  "state": {
+    "dialog_present": false,
+    "frame_count": 2,
+    "page_fingerprint": "4c40e8f49489fd01148f802885f52e3f5643f29078c753c559a4140586bf9208",
+    "screen": "transaction_detail"
+  },
+  "surface_features": [
+    "web",
+    "frames",
+    "accessible_roles",
+    "table_relationships"
+  ],
+  "vendor": "Northstar Synthetic Bank"
+}

@@ -1,0 +1,16 @@
+{
+  "artifact_digest": "0a39dc8932aedbefb41ed77e60fdaa83a98fcb72894724d03b6531cc6509f22a",
+  "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
+  "files": [
+    {
+      "path": "events.jsonl",
+      "sha256": "fefbcd2dbe27108f3ec38142d933b4d52777da5a158df9687e06de3a506854d9"
+    },
+    {
+      "path": "result.json",
+      "sha256": "5d40818c5951024156e6769847dbc354bc3340f8831c9681fd24d678ddbea2a6"
+    }
+  ],
+  "mode": "replay",
+  "run_id": "replay-handoff"
+}

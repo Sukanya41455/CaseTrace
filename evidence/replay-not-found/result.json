@@ -1,0 +1,19 @@
+{
+  "artifact_digest": "0a39dc8932aedbefb41ed77e60fdaa83a98fcb72894724d03b6531cc6509f22a",
+  "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
+  "candidates": [],
+  "code": "NOT_FOUND",
+  "coverage": {
+    "accounts_complete": true,
+    "accounts_searched": 2,
+    "complete": true,
+    "pages_complete": true,
+    "pages_searched": 5,
+    "sources_complete": true
+  },
+  "evidence_refs": [
+    "events.jsonl"
+  ],
+  "kind": "business_outcome",
+  "run_id": "replay-not-found"
+}

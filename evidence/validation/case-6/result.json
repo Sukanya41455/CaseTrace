@@ -1,0 +1,19 @@
+{
+  "artifact_digest": "0a39dc8932aedbefb41ed77e60fdaa83a98fcb72894724d03b6531cc6509f22a",
+  "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
+  "candidates": [],
+  "code": "NO_ACCOUNTS",
+  "coverage": {
+    "accounts_complete": false,
+    "accounts_searched": 0,
+    "complete": false,
+    "pages_complete": false,
+    "pages_searched": 0,
+    "sources_complete": false
+  },
+  "evidence_refs": [
+    "events.jsonl"
+  ],
+  "kind": "business_outcome",
+  "run_id": "case-6"
+}

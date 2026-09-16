@@ -1,0 +1,14 @@
+{
+  "artifact_digest": "0a39dc8932aedbefb41ed77e60fdaa83a98fcb72894724d03b6531cc6509f22a",
+  "attempt_count": 0,
+  "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
+  "code": "CHECKPOINT_FAILED",
+  "current_step": "read-accounts",
+  "evidence_refs": [
+    "events.jsonl"
+  ],
+  "expected_condition": "visible member identity before account enumeration",
+  "kind": "failure",
+  "observed_condition": "required evidence unavailable",
+  "run_id": "replay-checkpoint-failure"
+}

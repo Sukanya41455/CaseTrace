@@ -1,0 +1,28 @@
+{
+  "artifact_digest": "0a39dc8932aedbefb41ed77e60fdaa83a98fcb72894724d03b6531cc6509f22a",
+  "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
+  "files": [
+    {
+      "path": "capability.json",
+      "sha256": "8a1f63b3bc22575a38d2174d3385d9760ba7120f1615e9b73db0bb7dd39e5b69"
+    },
+    {
+      "path": "events.jsonl",
+      "sha256": "2d84af254af565ef4dd3cc77e12663febfabd9b68f4940fcbf350d2b4114b0bb"
+    },
+    {
+      "path": "recording.json",
+      "sha256": "1f535d58277a58884f49e03587e5de9ed69939a554b8b528d35ca35d69e225fa"
+    },
+    {
+      "path": "screenshot-000.png",
+      "sha256": "9b3e9431a1b62f085d25d5120b7a216a62a918b372f0d09153769352112d9e3a"
+    },
+    {
+      "path": "snapshot-000.json",
+      "sha256": "953f2e882e26e70a1fcfd150fa63169a17011fb5c843a50a4a5bbf3ec0c0dd38"
+    }
+  ],
+  "mode": "discovery",
+  "run_id": "discovery"
+}

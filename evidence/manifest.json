@@ -1,0 +1,13 @@
+{
+  "artifact_digest": "0a39dc8932aedbefb41ed77e60fdaa83a98fcb72894724d03b6531cc6509f22a",
+  "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
+  "capability": "validation/capability.json",
+  "different_replay_inputs": true,
+  "runs": {
+    "discovery": "discovery",
+    "replay-posted": "replay-posted",
+    "replay-not-found": "replay-not-found",
+    "replay-checkpoint-failure": "replay-checkpoint-failure",
+    "replay-handoff": "replay-handoff"
+  }
+}
