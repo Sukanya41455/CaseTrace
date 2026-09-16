@@ -120,6 +120,7 @@ This replay intentionally exits with `CHECKPOINT_FAILED`; see `evidence/replay-c
 .\.venv\Scripts\python.exe -c "import sys; print(sys.executable); print(sys.prefix != sys.base_prefix)"
 .\.venv\Scripts\python.exe -m pytest
 .\.venv\Scripts\python.exe -m ruff check src tests
+.\.venv\Scripts\python.exe -m casetrace.cli evidence-check evidence
 ```
 
 ## Linux and macOS Bash
@@ -199,7 +200,11 @@ The final replay writes `$replay_output/result.json` and `events.jsonl`; it must
 
 ### Additional scenarios
 
-The submitted evidence also includes a human handoff and a hard checkpoint failure. To reproduce the handoff, start this fixture in terminal A:
+The submitted evidence also includes a human handoff and a hard checkpoint failure. 
+
+**Note:** The handoff execution might seem stuck at the browser or slow, but let the run complete and it will return the success code.
+
+To reproduce the handoff, start this fixture in terminal A:
 
 ```bash
 .venv/bin/python -m casetrace.cli fixture --scenario expire-once --port 8000
@@ -238,6 +243,7 @@ This replay intentionally exits with `CHECKPOINT_FAILED`; see `evidence/replay-c
 .venv/bin/python -c "import sys; print(sys.executable); print(sys.prefix != sys.base_prefix)"
 .venv/bin/python -m pytest
 .venv/bin/python -m ruff check src tests
+.venv/bin/python -m casetrace.cli evidence-check evidence
 ```
 
 ## Discovery configuration
