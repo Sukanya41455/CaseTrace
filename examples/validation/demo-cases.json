@@ -1,6 +1,6 @@
 [
   {
-    "scenario": "test_fixture",
+    "scenario": "history-pagination",
     "params": {
       "member_id": "12345",
       "amount": "250.00",
@@ -13,7 +13,7 @@
     "expected_status": "POSTED"
   },
   {
-    "scenario": "pending_payment",
+    "scenario": "pending-payment",
     "params": {
       "member_id": "12345",
       "amount": "125.00",
@@ -26,7 +26,7 @@
     "expected_status": "PENDING"
   },
   {
-    "scenario": "reversed_payment",
+    "scenario": "payment-decision",
     "params": {
       "member_id": "12345",
       "amount": "80.00",
@@ -39,7 +39,7 @@
     "expected_status": "REVERSED"
   },
   {
-    "scenario": "payment_not_found",
+    "scenario": "multi-account",
     "params": {
       "member_id": "12345",
       "amount": "999.00",
@@ -52,7 +52,7 @@
     "expected_code": "NOT_FOUND"
   },
   {
-    "scenario": "ambiguous_payment",
+    "scenario": "payment-decision",
     "params": {
       "member_id": "12345",
       "amount": "60.00",
@@ -65,7 +65,7 @@
     "expected_code": "AMBIGUOUS"
   },
   {
-    "scenario": "member_not_found",
+    "scenario": "member-not-found",
     "params": {
       "member_id": "99999",
       "amount": "250.00",
@@ -78,7 +78,7 @@
     "expected_code": "MEMBER_NOT_FOUND"
   },
   {
-    "scenario": "no_accounts",
+    "scenario": "no-accounts",
     "params": {
       "member_id": "11111",
       "amount": "250.00",

@@ -40,6 +40,7 @@ from .contracts import (
     Success,
     TenantBindings,
     VisibleTextStrategy,
+    required_validation_scenarios,
     resolve_value,
 )
 from .evidence import EvidenceWriter
@@ -206,13 +207,7 @@ class ReplayRunner:
         )
 
     def validate_seal(self):
-        required = {
-            p.validation_scenario
-            for p in [self.capability.provenance]
-            + [s.provenance for s in _steps(self.capability.steps)]
-            + [h.provenance for h in self.capability.handlers]
-            if p.validation_scenario is not None
-        }
+        required = required_validation_scenarios(self.capability)
         passed = set()
         for report in self.capability.validation:
             if (

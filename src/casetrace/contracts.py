@@ -1070,6 +1070,21 @@ class Intervention(ContractModel):
         return self.intervention_id
 
 
+def required_validation_scenarios(capability: Capability) -> set[str]:
+    """Return scenarios required to validate executable provenance."""
+
+    provenances = (
+        [capability.provenance]
+        + [step.provenance for step, _ in _walk_steps(capability.steps)]
+        + [handler.provenance for handler in capability.handlers]
+    )
+    return {
+        provenance.validation_scenario
+        for provenance in provenances
+        if provenance.validation_scenario is not None
+    }
+
+
 AllPredicate.model_rebuild()
 AnyPredicate.model_rebuild()
 BranchCase.model_rebuild()

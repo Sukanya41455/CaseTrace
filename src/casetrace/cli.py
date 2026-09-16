@@ -26,6 +26,7 @@ from casetrace.contracts import (
     TenantBindings,
     ValidationReport,
     contract_schema_bundle,
+    required_validation_scenarios,
 )
 from casetrace.evidence import EvidenceWriter
 from casetrace.integrity import binding_digest, capability_digest
@@ -462,7 +463,13 @@ def validate_artifact(
         typer.echo(json.dumps({"kind": "failure", "code": "SESSION_LOST"}))
         raise typer.Exit(1) from None
     _write_json(output / "validation.json", report.model_dump(mode="json"))
-    passed = all(case.passed for case in report.scenario_results)
+    required = required_validation_scenarios(capability)
+    passed_scenarios = {
+        result.scenario
+        for result in report.scenario_results
+        if result.passed and result.evidence_refs
+    }
+    passed = all(case.passed for case in report.scenario_results) and required <= passed_scenarios
     if passed:
         validated = capability.model_copy(update={"validation": [*capability.validation, report]})
         _write_json(output / "capability.json", validated.model_dump(mode="json"))
