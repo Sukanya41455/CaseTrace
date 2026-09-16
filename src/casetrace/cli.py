@@ -140,7 +140,11 @@ async def _runtime(policy, bindings, evidence, *, headed=False, operator_port=No
             event("action", "Manual UI action; field values omitted", actor="human_operator")
 
     surface = await BrowserSurface.launch(
-        policy, [], headless=not headed, manual_event_handler=manual
+        policy,
+        [],
+        headless=not headed,
+        manual_event_handler=manual,
+        operator_origin=f"http://127.0.0.1:{operator_port}" if operator_port else None,
     )
     previous_owner = "automation"
 
@@ -230,6 +234,8 @@ async def _runtime(policy, bindings, evidence, *, headed=False, operator_port=No
                         serving.result()
                         raise RuntimeError("operator endpoint failed")
                     await asyncio.sleep(0.02)
+            if headed:
+                await surface.open_operator(f"http://127.0.0.1:{operator_port}/")
         yield surface, session
     finally:
         try:

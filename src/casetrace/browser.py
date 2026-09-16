@@ -216,6 +216,7 @@ class BrowserSurface:
         policy: Policy,
         targets: Sequence[TargetSpec],
         manual_event_handler: ManualEventHandler | None,
+        operator_origin: str | None = None,
     ) -> None:
         self._playwright = playwright
         self._browser = browser
@@ -224,6 +225,8 @@ class BrowserSurface:
         self._policy = policy
         self._targets = {target.target_id: target for target in targets}
         self._manual_event_handler = manual_event_handler
+        self._operator_origin = operator_origin.rstrip("/") if operator_origin else None
+        self._operator_page: Page | None = None
         self._manual_events: list[dict[str, str | bool]] = []
         self._blocked_request = False
         self._observation_index = 0
@@ -248,6 +251,7 @@ class BrowserSurface:
         *,
         headless: bool = True,
         manual_event_handler: ManualEventHandler | None = None,
+        operator_origin: str | None = None,
     ) -> BrowserSurface:
         playwright = await async_playwright().start()
         try:
@@ -278,6 +282,7 @@ class BrowserSurface:
                 policy,
                 targets,
                 manual_event_handler,
+                operator_origin,
             )
             holder["surface"] = surface
             cdp = await context.new_cdp_session(page)
@@ -333,6 +338,13 @@ class BrowserSurface:
         except BaseException:
             await playwright.stop()
             raise
+
+    async def open_operator(self, url: str) -> None:
+        if self._operator_origin is None or not url.startswith(self._operator_origin + "/"):
+            raise ValueError("operator URL does not match the configured loopback origin")
+        self._operator_page = await self._context.new_page()
+        await self._operator_page.goto(url, wait_until="load")
+        await self._operator_page.bring_to_front()
 
     async def close(self) -> None:
         try:
@@ -918,7 +930,13 @@ class BrowserSurface:
 
     async def _guard_request(self, route: Route) -> None:
         request = route.request
-        if self._policy.request_allowed(request.url, request.method, request.resource_type):
+        operator_request = (
+            self._operator_origin is not None
+            and request.url.startswith(self._operator_origin + "/")
+        )
+        if operator_request or self._policy.request_allowed(
+            request.url, request.method, request.resource_type
+        ):
             await route.continue_()
         else:
             self._blocked_request = True
@@ -933,7 +951,10 @@ class BrowserSurface:
             raise RunStopped(
                 FailureCode.POLICY_DENIED, step_id, "reviewed requests", "request denied"
             )
-        if len(self._context.pages) != 1 or self._page.is_closed():
+        allowed_pages = {self._page}
+        if self._operator_page is not None and not self._operator_page.is_closed():
+            allowed_pages.add(self._operator_page)
+        if set(self._context.pages) != allowed_pages or self._page.is_closed():
             raise RunStopped(
                 FailureCode.POLICY_DENIED,
                 step_id,

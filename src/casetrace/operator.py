@@ -96,6 +96,11 @@ def create_operator_app(
                 "</form>"
             )
 
+        refresh = (
+            "<script>setTimeout(() => location.reload(), 1000);</script>"
+            if session.state in {SessionState.AUTOMATION, SessionState.PAUSING}
+            else ""
+        )
         body = (
             "<!doctype html><html><head><title>CaseTrace operator</title></head><body>"
             "<h1>CaseTrace operator</h1>"
@@ -109,6 +114,7 @@ def create_operator_app(
             + form("take-control", "Take control", take_disabled)
             + form("resume", "Resume", resume_disabled)
             + form("abort", "Abort", abort_disabled)
+            + refresh
             + "</body></html>"
         )
         return HTMLResponse(body, headers={"Cache-Control": "no-store"})

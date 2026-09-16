@@ -433,6 +433,18 @@ def _capability_dict(
         ],
         "handlers": [
             {
+                "handler_id": "session-expired-handoff",
+                "detector": _visible("session-expired"),
+                "disposition": "handoff",
+                "failure_code": "ACCESS_DENIED",
+                "provenance": generalized(
+                    "session-expired-handoff",
+                    trace.navigate,
+                    trace.member_fill,
+                    trace.member_search,
+                ).model_dump(mode="json"),
+            },
+            {
                 "handler_id": "permission-denied",
                 "detector": _visible("permission-denied"),
                 "disposition": "fail",
@@ -821,6 +833,12 @@ def _profile_targets(frame_path: list[str]) -> dict[str, TargetSpec]:
             surface_kind="web",
             frame_path=frame_path,
             strategies=[AccessibleRoleStrategy(role="link", name="Back to member")],
+        ),
+        "session-expired": TargetSpec(
+            target_id="session-expired",
+            surface_kind="web",
+            frame_path=frame_path,
+            strategies=[VisibleTextStrategy(text="Session expired", exact=True)],
         ),
         "permission-denied": TargetSpec(
             target_id="permission-denied",
