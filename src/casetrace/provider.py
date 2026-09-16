@@ -284,6 +284,84 @@ def _candidate_tool_schema(capability_schema: dict[str, object]) -> dict[str, ob
     }
 
 
+def _candidate_context(recording: dict[str, object]) -> str:
+    return json.dumps(
+        {
+            "instruction": (
+                "Propose the final typed capability from only this observed recording. "
+                "Preserve event provenance. Generalize dynamic values only with input or "
+                "variable references. Keep validation empty; unobserved/generalized behavior "
+                "requires a validation scenario."
+            ),
+            "fixed_contract": {
+                "schema_version": "1.0",
+                "capability_id": "trace_incoming_payment",
+                "capability_version": "0.1.0",
+                "input_schema": {
+                    "name": "PaymentQuery",
+                    "version": "1.0",
+                    "schema_ref": "#/$defs/PaymentQuery",
+                },
+                "output_schema": {
+                    "name": "RunResult",
+                    "version": "1.0",
+                    "schema_ref": "#/$defs/RunResult",
+                    "result_kinds": ["success", "business_outcome", "failure"],
+                },
+                "scope": {
+                    "direction": "CREDIT",
+                    "currency": "USD",
+                    "sources": ["history", "pending"],
+                    "effect": "read_only",
+                    "max_date_window_days": 31,
+                },
+                "limits": {
+                    "max_accounts": 3,
+                    "max_pages_per_source": 3,
+                    "max_rows_per_page": 10,
+                    "max_ui_actions": 200,
+                    "active_timeout_seconds": 300,
+                    "action_timeout_seconds": 10,
+                    "max_retries": 2,
+                    "retry_backoff_ms": [250, 1000],
+                    "max_interventions": 2,
+                    "human_timeout_seconds": 600,
+                },
+                "handlers": [],
+                "validation": [],
+            },
+            "candidate_rules": [
+                (
+                    "Copy vendor, supported app version, surface features, targets, and "
+                    "primitive step shapes from the recording."
+                ),
+                (
+                    "Every primitive step must have a non-empty visible-state check and "
+                    "cite its genuine event IDs."
+                ),
+                (
+                    "Generalized steps must cite grounding event IDs and name a validation "
+                    "scenario."
+                ),
+                "Use bounded loops for repeated accounts, sources, pages, or rows.",
+                (
+                    "End every path with a typed return; use payment_decision with "
+                    "payment_rows and payment_detail read step IDs for the complete search."
+                ),
+                (
+                    "Required checkpoint roles are member_identity_verified, "
+                    "account_identity_verified, source_identity_verified, filters_verified, "
+                    "page_exhausted, source_exhausted, accounts_exhausted, and "
+                    "payment_identity_verified."
+                ),
+            ],
+            "recording": recording,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
 def _decision_context(observation: Observation, history: list[dict[str, object]]) -> str:
     history_window = 8
     bounded_history = history
@@ -797,7 +875,7 @@ class GroqProvider:
                 "tool_choice": tool_choice,
                 "parallel_tool_calls": False,
                 "temperature": 0,
-                "max_completion_tokens": 1024,
+                "max_completion_tokens": 1000,
             },
             retry_failed_generation=True,
         )
@@ -835,81 +913,7 @@ class GroqProvider:
             description="Return one capability candidate matching the supplied schema.",
             parameters_json_schema=_candidate_tool_schema(capability_schema),
         )
-        content = json.dumps(
-            {
-                "instruction": (
-                    "Propose the final typed capability from only this observed recording. "
-                    "Preserve event provenance. Generalize dynamic values only with input or "
-                    "variable references. Keep validation empty; unobserved/generalized behavior "
-                    "requires a validation scenario."
-                ),
-                "fixed_contract": {
-                    "schema_version": "1.0",
-                    "capability_id": "trace_incoming_payment",
-                    "capability_version": "0.1.0",
-                    "input_schema": {
-                        "name": "PaymentQuery",
-                        "version": "1.0",
-                        "schema_ref": "#/$defs/PaymentQuery",
-                    },
-                    "output_schema": {
-                        "name": "RunResult",
-                        "version": "1.0",
-                        "schema_ref": "#/$defs/RunResult",
-                        "result_kinds": ["success", "business_outcome", "failure"],
-                    },
-                    "scope": {
-                        "direction": "CREDIT",
-                        "currency": "USD",
-                        "sources": ["history", "pending"],
-                        "effect": "read_only",
-                        "max_date_window_days": 31,
-                    },
-                    "limits": {
-                        "max_accounts": 3,
-                        "max_pages_per_source": 3,
-                        "max_rows_per_page": 10,
-                        "max_ui_actions": 200,
-                        "active_timeout_seconds": 300,
-                        "action_timeout_seconds": 10,
-                        "max_retries": 2,
-                        "retry_backoff_ms": [250, 1000],
-                        "max_interventions": 2,
-                        "human_timeout_seconds": 600,
-                    },
-                    "handlers": [],
-                    "validation": [],
-                },
-                "candidate_rules": [
-                    (
-                        "Copy vendor, supported app version, surface features, targets, and "
-                        "primitive step shapes from the recording."
-                    ),
-                    (
-                        "Every primitive step must have a non-empty visible-state check and "
-                        "cite its genuine event IDs."
-                    ),
-                    (
-                        "Generalized steps must cite grounding event IDs and name a validation "
-                        "scenario."
-                    ),
-                    "Use bounded loops for repeated accounts, sources, pages, or rows.",
-                    (
-                        "End every path with a typed return; use payment_decision with "
-                        "payment_rows and payment_detail read step IDs for the complete search."
-                    ),
-                    (
-                        "Required checkpoint roles are member_identity_verified, "
-                        "account_identity_verified, source_identity_verified, filters_verified, "
-                        "page_exhausted, source_exhausted, accounts_exhausted, and "
-                        "payment_identity_verified."
-                    ),
-                ],
-                "recording": recording,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
+        content = _candidate_context(recording)
         result = await self._chat(
             {
                 "model": self.model,
@@ -1007,7 +1011,7 @@ class OllamaProvider:
             if self._client is not None:
                 response = await self._client.post("/api/chat", json=payload)
             else:
-                async with httpx.AsyncClient(base_url=self.base_url, timeout=600) as client:
+                async with httpx.AsyncClient(base_url=self.base_url, timeout=1800) as client:
                     response = await client.post("/api/chat", json=payload)
             response.raise_for_status()
             result = response.json()
@@ -1081,19 +1085,7 @@ class OllamaProvider:
             description="Return one capability candidate matching the supplied schema.",
             parameters_json_schema=capability_schema,
         )
-        content = json.dumps(
-            {
-                "instruction": (
-                    "Propose the final typed capability from only this observed recording. "
-                    "Preserve event provenance. Generalize dynamic values only with input or "
-                    "variable references. Keep validation empty; unobserved/generalized behavior "
-                    "requires a validation scenario."
-                ),
-                "recording": recording,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
+        content = _candidate_context(recording)
         result = await self._chat(
             {
                 "model": self.model,

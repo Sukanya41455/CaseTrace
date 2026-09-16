@@ -100,7 +100,7 @@ async def test_groq_provider_returns_required_single_typed_tool_call() -> None:
     assert request_body["tool_choice"] == "required"
     assert request_body["parallel_tool_calls"] is False
     assert request_body["temperature"] == 0
-    assert request_body["max_completion_tokens"] == 1024
+    assert request_body["max_completion_tokens"] == 1000
     assert request_body["tools"][0]["function"]["name"] == "navigate"
     assert "description" not in request_body["tools"][0]["function"]["parameters"]["properties"][
         "purpose"
@@ -1277,7 +1277,12 @@ async def test_ollama_provider_returns_typed_candidate() -> None:
         "description": "Return one capability candidate matching the supplied schema.",
         "parameters": {"$defs": {"Step": {"$ref": "#/$defs/Step"}}},
     }
-    assert "capability_schema" not in json.loads(request_body["messages"][1]["content"])
+    content = json.loads(request_body["messages"][1]["content"])
+    assert "capability_schema" not in content
+    assert content["fixed_contract"]["capability_id"] == "trace_incoming_payment"
+    assert content["fixed_contract"]["capability_version"] == "0.1.0"
+    assert any("non-empty visible-state check" in rule for rule in content["candidate_rules"])
+    assert any("typed return" in rule for rule in content["candidate_rules"])
 
 
 @pytest.mark.asyncio
@@ -1359,7 +1364,7 @@ async def test_ollama_provider_allows_slow_local_generation(monkeypatch) -> None
         discovery_tool_declarations(),
     )
 
-    assert captured_timeout == 600
+    assert captured_timeout == 1800
 
 
 @pytest.mark.asyncio
