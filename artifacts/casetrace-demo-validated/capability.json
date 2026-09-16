@@ -6,6 +6,22 @@
       "backoff_ms": [],
       "detector": {
         "kind": "visible",
+        "target_id": "session-expired"
+      },
+      "disposition": "handoff",
+      "failure_code": "ACCESS_DENIED",
+      "handler_id": "session-expired-handoff",
+      "max_attempts": 0,
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      }
+    },
+    {
+      "backoff_ms": [],
+      "detector": {
+        "kind": "visible",
         "target_id": "permission-denied"
       },
       "disposition": "fail",
@@ -1043,6 +1059,23 @@
         {
           "exact": true,
           "kind": "visible_text",
+          "text": "Session expired"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "session-expired"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "exact": true,
+          "kind": "visible_text",
           "text": "Permission denied"
         }
       ],
@@ -1390,7 +1423,7 @@
   ],
   "validation": [
     {
-      "artifact_digest": "2b601ba4fa47941f1e285866630e2f780bfe6e6c5e5996de02afaee886849361",
+      "artifact_digest": "73bd319664cada2cf1ed2f18811345b4e20783044998131341c9d6b3c85fc91e",
       "binding_digest": "1869961fb3cebe61276ca89bf8f7eb8d0ea3fecfe8ccec0b2a9f1d7d0b521680",
       "scenario_results": [
         {

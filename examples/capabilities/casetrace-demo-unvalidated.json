@@ -6,6 +6,22 @@
       "backoff_ms": [],
       "detector": {
         "kind": "visible",
+        "target_id": "session-expired"
+      },
+      "disposition": "handoff",
+      "failure_code": "ACCESS_DENIED",
+      "handler_id": "session-expired-handoff",
+      "max_attempts": 0,
+      "provenance": {
+        "event_ids": [],
+        "kind": "authored",
+        "validation_scenario": "test_fixture"
+      }
+    },
+    {
+      "backoff_ms": [],
+      "detector": {
+        "kind": "visible",
         "target_id": "permission-denied"
       },
       "disposition": "fail",
@@ -1031,6 +1047,23 @@
       ],
       "surface_kind": "web",
       "target_id": "applied"
+    },
+    {
+      "anchor": null,
+      "cardinality": 1,
+      "container": null,
+      "frame_path": [
+        "Bank workspace"
+      ],
+      "strategies": [
+        {
+          "exact": true,
+          "kind": "visible_text",
+          "text": "Session expired"
+        }
+      ],
+      "surface_kind": "web",
+      "target_id": "session-expired"
     },
     {
       "anchor": null,
