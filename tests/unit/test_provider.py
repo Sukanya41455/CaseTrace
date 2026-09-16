@@ -1108,7 +1108,10 @@ async def test_ollama_retries_invalid_tool_arguments_once() -> None:
                     {
                         "function": {
                             "name": "click",
-                            "arguments": {                            "target_handle": "next", "purpose": "Use allowed"}
+                            "arguments": {
+                                "target_handle": "next",
+                                "purpose": "Use allowed",
+                            },
                         }
                     }
                 ]

@@ -23,7 +23,11 @@ $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $PWD '.browser-cache'
 .\.venv\Scripts\python.exe -m playwright install chromium
 ```
 
-Run the demo:
+## Reviewer paths
+
+### Quick offline review
+
+This path needs no model provider. It starts the synthetic bank, replays the submitted validated capability with different inputs, and writes fresh replay evidence under `runs/`.
 
 ```powershell
 .\scripts\demo.ps1
@@ -36,12 +40,52 @@ Useful demo options:
 .\scripts\demo.ps1 -UseExistingFixture
 ```
 
-## What this does
+The replay must finish with `kind: "success"`, payment status `"POSTED"`, and zero model calls. The script prints the evidence directory when it finishes.
 
-- Opens the synthetic bank in a browser
-- Explores the visible UI
-- Records a typed, bounded capability
-- Replays the workflow without model calls
+### Full reproduction
+
+This path requires access to a configured model provider because it creates a new capability through live discovery. Copy `.env.example` to `.env`, configure one of its documented providers, and confirm it is reachable:
+
+```powershell
+Copy-Item .env.example .env
+.\.venv\Scripts\python.exe -m casetrace.cli doctor --live-model
+```
+
+Start the normal synthetic-bank fixture in one terminal and leave it running:
+
+```powershell
+.\.venv\Scripts\python.exe -m casetrace.cli fixture --scenario normal --port 8000
+```
+
+In a second terminal, run discovery, validate its newly produced capability, then replay that validated artifact with different input parameters:
+
+```powershell
+$runRoot = "runs\review-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+$discoveryOutput = Join-Path $runRoot 'discovery'
+$validationOutput = Join-Path $runRoot 'validation'
+$replayOutput = Join-Path $runRoot 'replay-posted'
+
+.\.venv\Scripts\python.exe -m casetrace.cli discover `
+  --target http://127.0.0.1:8000 `
+  --bindings config/base.json `
+  --params examples/queries/posted.json `
+  --output $discoveryOutput `
+  --goal "Find the incoming payment described by the typed invocation, confirm its identity on the transaction detail screen, and propose the reusable bounded capability."
+
+.\.venv\Scripts\python.exe -m casetrace.cli validate-artifact "$discoveryOutput\capability.json" `
+  --target http://127.0.0.1:8000 `
+  --bindings config/base.json `
+  --cases examples/validation/demo-cases.json `
+  --output $validationOutput
+
+.\.venv\Scripts\python.exe -m casetrace.cli replay "$validationOutput\capability.json" `
+  --target http://127.0.0.1:8000 `
+  --bindings config/base.json `
+  --params examples/queries/posted-new-member.json `
+  --output $replayOutput
+```
+
+The discovery output contains the generated `capability.json`; validation writes the reviewed capability at `$validationOutput\capability.json`; and the final replay writes `$replayOutput\result.json` and `events.jsonl`. The final replay should report `kind: "success"`, payment status `"POSTED"`, and zero model calls.
 
 ## Development checks
 
@@ -51,11 +95,9 @@ Useful demo options:
 .\.venv\Scripts\python.exe -m ruff check src tests
 ```
 
-## Discovery config
+## Discovery configuration
 
-If you want live discovery, set env values from `.env.example`.
-
-Common options:
+`.env.example` documents the supported provider settings:
 - `GEMINI_API_KEY` + `CASETRACE_MODEL` for Gemini
 - `CASETRACE_OLLAMA_MODEL` for local Ollama
 - `CASETRACE_DISCOVERY_TIMEOUT_SECONDS` for the discovery time limit
