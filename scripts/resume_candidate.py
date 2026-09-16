@@ -109,6 +109,13 @@ def _timeout_from_env() -> float:
 def canonicalize_candidate(candidate: dict[str, object]) -> dict[str, object]:
     """Repair only values already fixed by the Capability schema."""
     repaired = deepcopy(candidate)
+    for field in ("input_schema", "output_schema", "scope", "limits", "provenance"):
+        value = repaired.get(field)
+        if isinstance(value, str):
+            decoded = json.loads(value)
+            if not isinstance(decoded, dict):
+                raise ValueError(f"{field} must decode to an object")
+            repaired[field] = decoded
     repaired["capability_id"] = "trace_incoming_payment"
     repaired["capability_version"] = "0.1.0"
 

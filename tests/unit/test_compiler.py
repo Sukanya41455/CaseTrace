@@ -216,3 +216,31 @@ def test_compiler_rejects_target_that_drops_recorded_context() -> None:
 
     with pytest.raises(CompilationError, match="target differs semantically"):
         compile_candidate(recording, proposal.model_dump(mode="json"), _bindings())
+
+
+def test_compiler_allows_validation_bound_generalized_target() -> None:
+    proposal, recording = _candidate_and_recording()
+    generalized_target = TargetSpec(
+        target_id="generalized-member-heading",
+        surface_kind="web",
+        frame_path=["Bank workspace"],
+        strategies=[AccessibleRoleStrategy(role="heading", name="Member summary")],
+    )
+    proposal = proposal.model_copy(
+        update={"targets": [*proposal.targets, generalized_target]}
+    )
+    proposal.steps[1] = proposal.steps[1].model_copy(
+        update={
+            "predicate": VisiblePredicate(target_id=generalized_target.target_id),
+            "checks": [VisiblePredicate(target_id=generalized_target.target_id)],
+            "provenance": Provenance(
+                kind="generalized",
+                event_ids=["event-2"],
+                validation_scenario="member-summary",
+            ),
+        }
+    )
+
+    artifact = compile_candidate(recording, proposal, _bindings())
+
+    assert artifact.steps[1].provenance.kind == "generalized"

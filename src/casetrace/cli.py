@@ -84,6 +84,16 @@ def _writer(output: Path, args: PaymentQuery) -> EvidenceWriter:
     )
 
 
+def _discovery_payload(capability: Capability, calls: int) -> dict[str, object]:
+    return {
+        "kind": "capability",
+        "validation": "required",
+        "model_calls": calls,
+        "artifact_digest": capability_digest(capability),
+        "compiler": "deterministic-recording-v1",
+    }
+
+
 def _runtime_failure(evidence, capability, bindings) -> None:
     evidence.finish(
         Failure(
@@ -323,7 +333,7 @@ def discover_command(
     goal: Annotated[str, typer.Option()],
     headed: bool = False,
 ) -> None:
-    """Discover through real provider UI tool calls and save an unvalidated candidate."""
+    """Discover through real provider UI tool calls and save an unvalidated capability."""
     try:
         args = PaymentQuery.model_validate(_json(params))
         tenant, policy = _configuration(target, bindings)
@@ -351,11 +361,21 @@ def discover_command(
             )
             _write_json(evidence.run_dir / "capability.json", capability.model_dump(mode="json"))
             await evidence.capture(surface)
+            evidence.seal(
+                capability_digest(capability),
+                binding_digest(tenant),
+                mode="discovery",
+            )
             return capability, provider.calls
 
     try:
         capability, calls = asyncio.run(run())
     except Exception as error:
+        observed_condition = (
+            f"{type(error).__name__}: {error}"
+            if isinstance(error, ValueError)
+            else f"{type(error).__name__} during discovery"
+        )
         result = Failure(
             run_id=evidence.run_id,
             artifact_digest=None,
@@ -363,27 +383,16 @@ def discover_command(
             evidence_refs=["events.jsonl"],
             code=error.code if isinstance(error, RunStopped) else FailureCode.MODEL_ERROR,
             current_step=error.step_id if isinstance(error, RunStopped) else None,
-            expected_condition="genuine UI discovery and valid candidate",
+            expected_condition="genuine UI discovery and valid compiled capability",
             observed_condition=(
-                error.observed
-                if isinstance(error, RunStopped)
-                else f"{type(error).__name__} during discovery"
+                error.observed if isinstance(error, RunStopped) else observed_condition
             ),
             attempt_count=0,
         )
-        evidence.finish(result)
+        evidence.finish(result, mode="discovery")
         typer.echo(evidence.result_path.read_text(encoding="utf-8").strip())
         raise typer.Exit(1) from None
-    typer.echo(
-        json.dumps(
-            {
-                "kind": "candidate",
-                "validation": "required",
-                "model_calls": calls,
-                "artifact_digest": capability_digest(capability),
-            }
-        )
-    )
+    typer.echo(json.dumps(_discovery_payload(capability, calls)))
 
 
 class ValidationCase(BaseModel):

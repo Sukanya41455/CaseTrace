@@ -23,6 +23,7 @@ from .contracts import (
     PaymentQuery,
     Provenance,
     ReadParser,
+    ReadRole,
     ReadStep,
     RunEvent,
     RunStopped,
@@ -133,7 +134,7 @@ async def discover(
     max_actions: int = MAX_ACTIONS,
     timeout_seconds: float = DISCOVERY_TIMEOUT_SECONDS,
 ) -> Capability:
-    """Run model-guided UI exploration and compile its separately proposed candidate."""
+    """Run model-guided UI exploration and compile its qualified recording."""
 
     if max_decisions < 1 or max_actions < 1 or timeout_seconds <= 0:
         raise ValueError("discovery limits must be positive")
@@ -216,7 +217,7 @@ async def discover(
                     recording.record_provider_call("finish", decision)
                     emit(
                         kind="checkpoint",
-                        summary="Model requested candidate compilation",
+                        summary="Model requested deterministic capability compilation",
                         observation_id=observation.observation_id,
                         provider_response_id=decision.response_id,
                         model_id=decision.model_version,
@@ -230,6 +231,13 @@ async def discover(
                             "observed executable operations",
                             "model finished before acting",
                         )
+                    if not _has_payment_detail_read(recording):
+                        raise RunStopped(
+                            FailureCode.CHECKPOINT_FAILED,
+                            None,
+                            "typed payment detail read before finish",
+                            "transaction detail fields were not read",
+                        )
                     if not _has_executable_goal_confirmation(recording, observation):
                         raise RunStopped(
                             FailureCode.CHECKPOINT_FAILED,
@@ -238,30 +246,16 @@ async def discover(
                             "transaction detail screen",
                             "UI goal was not confirmed",
                         )
-                    from .compiler import compile_candidate
-
-                    try:
-                        candidate = await provider.propose_candidate(
-                            recording.public_summary(), Capability.model_json_schema()
-                        )
-                    except ProviderFailure as error:
+                    if bindings is None:
                         raise RunStopped(
                             FailureCode.MODEL_ERROR,
                             None,
-                            "schema-valid candidate proposal",
-                            f"provider candidate request failed: {error.category}",
-                        ) from error
-                    recording.record_provider_call("candidate", candidate)
-                    emit(
-                        kind="checkpoint",
-                        summary="Model capability candidate received",
-                        observation_id=observation.observation_id,
-                        provider_response_id=candidate.response_id,
-                        model_id=candidate.model_version,
-                        model_call_count=candidate.call_index,
-                    )
-                    _persist_recording(recording, evidence.run_dir)
-                    return compile_candidate(recording, candidate.candidate, bindings)
+                            "tenant bindings for deterministic compilation",
+                            "tenant bindings were unavailable",
+                        )
+                    from .recording_compiler import compile_recording
+
+                    return compile_recording(recording, bindings)
                 action_count += 1
                 if action_count > max_actions:
                     raise RunStopped(
@@ -403,10 +397,35 @@ async def _execute_proposal(
         await session.execute(lambda: surface.act(step, args, variables))
         return step, target, "control activated and a fresh sanitized observation captured"
     if isinstance(proposal, ReadProposal):
+        screen = observation.state.get("screen")
+        read_role = None
+        account = None
+        source = None
+        if screen == "transaction_detail":
+            read_role = ReadRole.PAYMENT_DETAIL
+        elif (
+            screen == "member_summary"
+            and proposal.parser == ReadParser.TABLE_ROWS.value
+            and proposal.store_as == "accounts"
+        ):
+            read_role = ReadRole.ACCOUNTS
+        elif (
+            screen == "account_activity"
+            and proposal.parser == ReadParser.TABLE_ROWS.value
+            and proposal.store_as == "payment_rows"
+        ):
+            read_role = ReadRole.PAYMENT_ROWS
+            account = VariableValue(name="account")
+            source = LiteralValue(
+                value="pending" if _target_name(target) == "Pending activity" else "history"
+            )
         step = ReadStep(
             step_id=f"discovery-{ordinal}",
             target_id=proposal.target_handle,
             parser=ReadParser(proposal.parser),
+            read_role=read_role,
+            account=account,
+            source=source,
             store_as=proposal.store_as,
             checks=[],
             checkpoint=None,
@@ -514,6 +533,21 @@ def _has_executable_goal_confirmation(
         and latest.step.checkpoint_role is CheckpointRole.PAYMENT_IDENTITY_VERIFIED
         and bool(latest.step.checks)
     )
+
+
+def _has_payment_detail_read(recording: DiscoveryRecording) -> bool:
+    return any(
+        isinstance(operation.step, ReadStep)
+        and operation.step.read_role is ReadRole.PAYMENT_DETAIL
+        for operation in recording.operations
+    )
+
+
+def _target_name(target: TargetSpec | None) -> str | None:
+    if target is None or len(target.strategies) != 1:
+        return None
+    name = getattr(target.strategies[0], "name", None)
+    return name if isinstance(name, str) else None
 
 
 def _provider_observation(observation: Observation) -> Observation:

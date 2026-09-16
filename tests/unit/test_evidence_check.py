@@ -55,3 +55,17 @@ def test_delivery_requires_genuine_discovery_and_stable_handoff(tmp_path):
     problems = evidence.check_evidence(tmp_path)
     assert "missing genuine discovery evidence" in problems
     assert "missing genuine human handoff evidence" in problems
+
+
+def test_ollama_model_call_is_genuine_discovery_without_response_id():
+    assert evidence._has_genuine_discovery_event(
+        [
+            {
+                "seq": 0,
+                "kind": "action",
+                "model_id": "qwen3.5:9b",
+                "model_call_count": 1,
+                "provider_response_id": None,
+            }
+        ]
+    )

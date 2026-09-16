@@ -63,5 +63,31 @@
     },
     "expected_kind": "business_outcome",
     "expected_code": "AMBIGUOUS"
+  },
+  {
+    "scenario": "member_not_found",
+    "params": {
+      "member_id": "99999",
+      "amount": "250.00",
+      "currency": "USD",
+      "date_from": "2026-09-01",
+      "date_to": "2026-09-07",
+      "reference": null
+    },
+    "expected_kind": "business_outcome",
+    "expected_code": "MEMBER_NOT_FOUND"
+  },
+  {
+    "scenario": "no_accounts",
+    "params": {
+      "member_id": "11111",
+      "amount": "250.00",
+      "currency": "USD",
+      "date_from": "2026-09-01",
+      "date_to": "2026-09-07",
+      "reference": null
+    },
+    "expected_kind": "business_outcome",
+    "expected_code": "NO_ACCOUNTS"
   }
 ]

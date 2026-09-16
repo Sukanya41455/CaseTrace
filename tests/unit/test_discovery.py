@@ -8,15 +8,21 @@ import pytest
 from casetrace.compiler import CompilationError
 from casetrace.contracts import (
     AccessibleRoleStrategy,
+    Capability,
     CheckpointRole,
     FailureCode,
+    LiteralValue,
     Observation,
     ObservedControl,
     PaymentQuery,
+    ReadParser,
+    ReadRole,
     RunStopped,
     TargetSpec,
+    TenantBindings,
+    VariableValue,
 )
-from casetrace.discovery import discover
+from casetrace.discovery import _execute_proposal, discover
 from casetrace.evidence import EvidenceWriter
 from casetrace.provider import (
     CandidateDecision,
@@ -27,9 +33,11 @@ from casetrace.provider import (
     ModelDecision,
     NavigateProposal,
     ProviderFailure,
+    ReadProposal,
     discovery_tool_declarations,
 )
 from casetrace.session import SessionController
+from tests.unit.test_contracts import _artifact
 
 
 class _Models:
@@ -308,6 +316,16 @@ def _query() -> PaymentQuery:
     )
 
 
+def _bindings() -> TenantBindings:
+    return TenantBindings(
+        tenant_id="northstar-synthetic",
+        vendor="Northstar Synthetic Bank",
+        origin="http://127.0.0.1:8000",
+        app_version="2026.09",
+        timezone="America/Chicago",
+    )
+
+
 @pytest.mark.asyncio
 async def test_discovery_persists_each_action_and_first_recognized_surface(tmp_path) -> None:
     query = _query()
@@ -368,6 +386,38 @@ async def test_finish_requires_executable_confirmation_on_goal_screen(tmp_path) 
     assert provider.candidate_calls == 0
 
 
+@pytest.mark.asyncio
+async def test_finish_requires_typed_payment_detail_read(tmp_path) -> None:
+    provider = _ScriptedProvider(
+        [
+            NavigateProposal(url_kind="entry", url=None, purpose="Open the application"),
+            ConfirmProposal(
+                target_handle="payment-detail",
+                checkpoint_role=CheckpointRole.PAYMENT_IDENTITY_VERIFIED,
+                purpose="Confirm payment detail",
+            ),
+            FinishProposal(purpose="Finish without reading details"),
+        ],
+        candidate={},
+    )
+
+    with pytest.raises(RunStopped) as failure:
+        await discover(
+            "Trace an incoming payment",
+            _query(),
+            _ConfirmationSurface(),
+            SessionController("unread-detail-run"),
+            provider,
+            EvidenceWriter(tmp_path, "unread-detail-run"),
+            bindings=None,
+            entry_url="http://127.0.0.1:8000",
+        )
+
+    assert failure.value.code is FailureCode.CHECKPOINT_FAILED
+    assert failure.value.observed == "transaction detail fields were not read"
+    assert provider.candidate_calls == 0
+
+
 class _ConfirmationSurface(_NavigationSurface):
     def __init__(self) -> None:
         super().__init__(recognized_screen="transaction_detail")
@@ -399,12 +449,127 @@ class _ConfirmationSurface(_NavigationSurface):
         return True
 
 
+class _DetailReadSurface(_ConfirmationSurface):
+    async def observe(self) -> Observation:
+        observation = await _NavigationSurface.observe(self)
+        if self.observations == 1:
+            return observation
+        return observation.model_copy(
+            update={
+                "controls": [
+                    ObservedControl(
+                        target_handle="payment-detail",
+                        role="table",
+                        label="Transaction details",
+                    )
+                ]
+            }
+        )
+
+    def target_for_handle(self, observation_id: str, handle: str) -> TargetSpec:
+        return TargetSpec(
+            target_id=handle,
+            surface_kind="web",
+            strategies=[AccessibleRoleStrategy(role="table", name="Transaction details")],
+        )
+
+    async def read(self, step, args, variables):
+        return {"reference": "REF-POST-250", "amount": "250.00", "currency": "USD"}
+
+
 @pytest.mark.asyncio
-async def test_recording_attributes_finish_and_candidate_provider_calls(tmp_path) -> None:
+async def test_transaction_detail_read_is_recorded_with_payment_detail_role(tmp_path) -> None:
+    provider = _ScriptedProvider(
+        [
+            NavigateProposal(url_kind="entry", url=None, purpose="Open the application"),
+            ReadProposal(
+                target_handle="payment-detail",
+                parser="fields",
+                store_as="payment_detail",
+                purpose="Read transaction details",
+            ),
+            ConfirmProposal(
+                target_handle="payment-detail",
+                checkpoint_role=CheckpointRole.PAYMENT_IDENTITY_VERIFIED,
+                purpose="Confirm payment detail",
+            ),
+            FinishProposal(purpose="Finish after confirmation"),
+        ],
+        candidate={},
+    )
+
+    with pytest.raises(CompilationError):
+        await discover(
+            "Trace an incoming payment",
+            _query(),
+            _DetailReadSurface(),
+            SessionController("detail-read-run"),
+            provider,
+            EvidenceWriter(tmp_path, "detail-read-run"),
+            bindings=_bindings(),
+            entry_url="http://127.0.0.1:8000",
+        )
+
+    persisted = json.loads(
+        (tmp_path / "detail-read-run" / "recording.json").read_text(encoding="utf-8")
+    )
+    detail_read = persisted["operations"][1]["step"]
+    assert detail_read["kind"] == "read"
+    assert detail_read["parser"] == "fields"
+    assert detail_read["read_role"] == "payment_detail"
+
+
+@pytest.mark.asyncio
+async def test_activity_table_read_is_recorded_with_payment_row_context() -> None:
+    class ActivitySurface:
+        def target_for_handle(self, observation_id, handle):
+            return TargetSpec(
+                target_id=handle,
+                surface_kind="web",
+                strategies=[AccessibleRoleStrategy(role="table", name="History activity")],
+            )
+
+        async def read(self, step, args, variables):
+            return []
+
+    step, _, _ = await _execute_proposal(
+        ModelDecision(
+            proposal=ReadProposal(
+                target_handle="history-table",
+                parser="table_rows",
+                store_as="payment_rows",
+                purpose="Read payment rows",
+            ),
+            response_id="response-1",
+            model_version="scripted-test-provider",
+            call_index=1,
+        ),
+        Observation(observation_id="activity", state={"screen": "account_activity"}),
+        _query(),
+        {},
+        ActivitySurface(),
+        SessionController("payment-row-read"),
+        1,
+    )
+
+    assert step.parser is ReadParser.TABLE_ROWS
+    assert step.read_role is ReadRole.PAYMENT_ROWS
+    assert step.account == VariableValue(name="account")
+    assert step.source == LiteralValue(value="history")
+
+
+@pytest.mark.asyncio
+async def test_recording_attributes_finish_without_candidate_provider_call(tmp_path) -> None:
     query = _query()
     provider = _ScriptedProvider(
         [
             NavigateProposal(url_kind="entry", url=None, purpose="Open the application"),
+            ReadProposal(
+                target_handle="payment-detail",
+                parser="fields",
+                store_as="payment_detail",
+                purpose="Read transaction details",
+            ),
             ConfirmProposal(
                 target_handle="payment-detail",
                 checkpoint_role=CheckpointRole.PAYMENT_IDENTITY_VERIFIED,
@@ -419,11 +584,11 @@ async def test_recording_attributes_finish_and_candidate_provider_calls(tmp_path
         await discover(
             "Trace an incoming payment",
             query,
-            _ConfirmationSurface(),
+            _DetailReadSurface(),
             SessionController("metadata-run"),
             provider,
             EvidenceWriter(tmp_path, "metadata-run"),
-            bindings=None,
+            bindings=_bindings(),
             entry_url="http://127.0.0.1:8000",
         )
 
@@ -431,15 +596,12 @@ async def test_recording_attributes_finish_and_candidate_provider_calls(tmp_path
         (tmp_path / "metadata-run" / "recording.json").read_text(encoding="utf-8")
     )
     assert persisted["provider_calls"]["finish"] == {
-        "response_id": "test-response-3",
-        "model_id": "scripted-test-provider",
-        "call_index": 3,
-    }
-    assert persisted["provider_calls"]["candidate"] == {
         "response_id": "test-response-4",
         "model_id": "scripted-test-provider",
         "call_index": 4,
     }
+    assert "candidate" not in persisted["provider_calls"]
+    assert provider.candidate_calls == 0
 
 
 class _CandidateFailureProvider(_ScriptedProvider):
@@ -448,10 +610,16 @@ class _CandidateFailureProvider(_ScriptedProvider):
 
 
 @pytest.mark.asyncio
-async def test_candidate_failure_preserves_sanitized_provider_category(tmp_path) -> None:
+async def test_discovery_never_requests_a_candidate_after_finish(tmp_path) -> None:
     provider = _CandidateFailureProvider(
         [
             NavigateProposal(url_kind="entry", url=None, purpose="Open the application"),
+            ReadProposal(
+                target_handle="payment-detail",
+                parser="fields",
+                store_as="payment_detail",
+                purpose="Read transaction details",
+            ),
             ConfirmProposal(
                 target_handle="payment-detail",
                 checkpoint_role=CheckpointRole.PAYMENT_IDENTITY_VERIFIED,
@@ -461,17 +629,69 @@ async def test_candidate_failure_preserves_sanitized_provider_category(tmp_path)
         ]
     )
 
-    with pytest.raises(RunStopped) as failure:
+    with pytest.raises(CompilationError):
         await discover(
             "Trace an incoming payment",
             _query(),
-            _ConfirmationSurface(),
+            _DetailReadSurface(),
             SessionController("candidate-failure-run"),
             provider,
             EvidenceWriter(tmp_path, "candidate-failure-run"),
-            bindings=None,
+            bindings=_bindings(),
             entry_url="http://127.0.0.1:8000",
         )
 
-    assert failure.value.code is FailureCode.MODEL_ERROR
-    assert failure.value.observed == "provider candidate request failed: transport_400"
+    assert provider.candidate_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_discovery_returns_the_deterministic_compiler_result_without_candidate_call(
+    tmp_path, monkeypatch
+) -> None:
+    compiled = Capability.model_validate(_artifact())
+    received = {}
+
+    def compile_recording(recording, bindings):
+        received["recording"] = recording
+        received["bindings"] = bindings
+        return compiled
+
+    monkeypatch.setattr("casetrace.recording_compiler.compile_recording", compile_recording)
+    provider = _ScriptedProvider(
+        [
+            NavigateProposal(url_kind="entry", url=None, purpose="Open the application"),
+            ReadProposal(
+                target_handle="payment-detail",
+                parser="fields",
+                store_as="payment_detail",
+                purpose="Read transaction details",
+            ),
+            ConfirmProposal(
+                target_handle="payment-detail",
+                checkpoint_role=CheckpointRole.PAYMENT_IDENTITY_VERIFIED,
+                purpose="Confirm payment detail",
+            ),
+            FinishProposal(purpose="Finish after confirmation"),
+        ],
+        candidate=None,
+    )
+
+    result = await discover(
+        "Trace an incoming payment",
+        _query(),
+        _DetailReadSurface(),
+        SessionController("compiled-discovery"),
+        provider,
+        EvidenceWriter(tmp_path, "compiled-discovery"),
+        bindings=_bindings(),
+        entry_url="http://127.0.0.1:8000",
+    )
+
+    assert result is compiled
+    assert received["bindings"] == _bindings()
+    assert received["recording"].provider_calls["finish"]["call_index"] == 4
+    persisted = json.loads(
+        (tmp_path / "compiled-discovery" / "recording.json").read_text(encoding="utf-8")
+    )
+    assert "candidate" not in persisted["provider_calls"]
+    assert provider.candidate_calls == 0

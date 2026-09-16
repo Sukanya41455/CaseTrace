@@ -9,6 +9,8 @@ from typer.testing import CliRunner
 
 import casetrace.cli as cli_module
 from casetrace.cli import app
+from casetrace.contracts import Capability
+from tests.unit.test_contracts import _artifact
 
 runner = CliRunner()
 
@@ -126,3 +128,13 @@ def test_schema_export_contains_payment_decision(tmp_path):
     result = runner.invoke(app, ["schema", "--output", str(output)])
     assert result.exit_code == 0
     assert "PaymentDecisionBindings" in output.read_text()
+
+
+def test_discovery_payload_reports_compiled_capability() -> None:
+    payload = cli_module._discovery_payload(Capability.model_validate(_artifact()), calls=16)
+
+    assert payload["kind"] == "capability"
+    assert payload["validation"] == "required"
+    assert payload["model_calls"] == 16
+    assert payload["compiler"] == "deterministic-recording-v1"
+    assert isinstance(payload["artifact_digest"], str)

@@ -93,3 +93,20 @@ def test_finish_persists_redacted_result_projection(tmp_path) -> None:
     persisted = writer.result_path.read_text(encoding="utf-8")
     assert CANARIES[2] not in persisted
     assert "[REDACTED]" in persisted
+
+
+def test_seal_discovery_hashes_compiled_capability_and_recording(tmp_path) -> None:
+    writer = EvidenceWriter(tmp_path, "discovery")
+    (writer.run_dir / "recording.json").write_text("{}\n", encoding="utf-8")
+    (writer.run_dir / "capability.json").write_text("{}\n", encoding="utf-8")
+
+    writer.seal("a" * 64, "b" * 64, mode="discovery")
+
+    manifest = json.loads(writer.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["mode"] == "discovery"
+    assert manifest["artifact_digest"] == "a" * 64
+    assert manifest["binding_digest"] == "b" * 64
+    assert {item["path"] for item in manifest["files"]} == {
+        "capability.json",
+        "recording.json",
+    }

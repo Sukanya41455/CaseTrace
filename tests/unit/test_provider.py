@@ -733,7 +733,10 @@ def test_transaction_detail_confirmation_requires_payment_identity_checkpoint() 
         state={"screen": "transaction_detail"},
     )
 
-    declarations = {item.name: item for item in discovery_tool_declarations(observation)}
+    declarations = {
+        item.name: item
+        for item in discovery_tool_declarations(observation, [{"action": "read"}])
+    }
 
     checkpoint_role = declarations["confirm"].parameters_json_schema["properties"][
         "checkpoint_role"
@@ -742,6 +745,44 @@ def test_transaction_detail_confirmation_requires_payment_identity_checkpoint() 
         "type": "string",
         "enum": ["payment_identity_verified"],
     }
+
+
+def test_transaction_detail_requires_read_then_confirmation_before_finish() -> None:
+    observation = Observation(
+        observation_id="observation-detail",
+        state={"screen": "transaction_detail"},
+        controls=[
+            ObservedControl(
+                target_handle="detail-table",
+                role="table",
+                label="Transaction details",
+            )
+        ],
+    )
+
+    initial = {
+        item.name: item for item in discovery_tool_declarations(observation, [{"action": "click"}])
+    }
+    after_read = {
+        item.name: item for item in discovery_tool_declarations(observation, [{"action": "read"}])
+    }
+    after_confirm = {
+        item.name: item
+        for item in discovery_tool_declarations(observation, [{"action": "confirm"}])
+    }
+
+    assert set(initial) == {"read"}
+    assert initial["read"].parameters_json_schema["properties"] == {
+        "target_handle": {"type": "string", "enum": ["detail-table"]},
+        "parser": {"type": "string", "enum": ["fields"]},
+        "store_as": {"type": "string", "enum": ["payment_detail"]},
+        "purpose": {
+            "type": "string",
+            "description": "Brief action purpose; do not include private reasoning.",
+        },
+    }
+    assert set(after_read) == {"confirm"}
+    assert set(after_confirm) == {"finish"}
 
 
 def test_initial_discovery_only_offers_configured_entry_navigation() -> None:
@@ -1042,6 +1083,69 @@ async def test_ollama_rejects_tool_call_that_was_not_declared() -> None:
             )
 
     assert caught.value.category == "ollama_tool_not_declared"
+
+
+@pytest.mark.asyncio
+async def test_ollama_retries_invalid_tool_arguments_once() -> None:
+    responses = [
+        {
+            "model": "qwen3.5:9b",
+            "message": {
+                "tool_calls": [
+                    {
+                        "function": {
+                            "name": "click",
+                            "arguments": {"target_handle": "stale", "purpose": "Use stale"}
+                        }
+                    }
+                ]
+            },
+        },
+        {
+            "model": "qwen3.5:9b",
+            "message": {
+                "tool_calls": [
+                    {
+                        "function": {
+                            "name": "click",
+                            "arguments": {                            "target_handle": "next", "purpose": "Use allowed"}
+                        }
+                    }
+                ]
+            },
+        },
+    ]
+
+    async def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=responses.pop(0))
+
+    observation = Observation(
+        observation_id="observation-1",
+        controls=[
+            ObservedControl(target_handle="next", role="button", label="Next")
+        ],
+        state={"screen": "account_activity"},
+    )
+    async with httpx.AsyncClient(
+        base_url="http://127.0.0.1:11434",
+        transport=httpx.MockTransport(respond),
+    ) as client:
+        provider = OllamaProvider(
+            base_url="http://127.0.0.1:11434",
+            model="qwen3.5:9b",
+            context=16384,
+            client=client,
+        )
+        decision = await provider.decide(
+            observation,
+            [{"kind": "action_result", "action": "read"}],
+            discovery_tool_declarations(
+                observation, [{"kind": "action_result", "action": "read"}]
+            ),
+        )
+
+    assert decision.proposal.target_handle == "next"
+    assert provider.calls == 2
 
 
 def test_gemini_rejects_handle_outside_declared_enum() -> None:

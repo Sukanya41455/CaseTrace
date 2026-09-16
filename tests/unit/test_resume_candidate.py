@@ -110,6 +110,27 @@ def test_canonicalize_candidate_repairs_only_fixed_schema_fields() -> None:
     assert candidate["steps"][0]["target_id"] == "target-16-3"
 
 
+def test_canonicalize_candidate_decodes_stringified_object_fields() -> None:
+    candidate = {
+        "input_schema": '{"name":"PaymentQuery"}',
+        "output_schema": '{"name":"RunResult"}',
+        "scope": '{"currency":"USD"}',
+        "limits": '{"max_accounts":3}',
+        "provenance": '{"kind":"observed","event_ids":["event-1"]}',
+        "vendor": "Northstar Synthetic Bank",
+    }
+
+    repaired = canonicalize_candidate(candidate)
+
+    assert repaired["input_schema"] == {"name": "PaymentQuery"}
+    assert repaired["output_schema"] == {"name": "RunResult"}
+    assert repaired["scope"] == {"currency": "USD"}
+    assert repaired["limits"] == {"max_accounts": 3}
+    assert repaired["provenance"] == {"kind": "observed", "event_ids": ["event-1"]}
+    assert repaired["vendor"] == "Northstar Synthetic Bank"
+    assert candidate["input_schema"] == '{"name":"PaymentQuery"}'
+
+
 def test_preserve_raw_candidate_keeps_existing_attempt(tmp_path) -> None:
     candidate = tmp_path / "candidate.raw.json"
     candidate.write_text('{"attempt": 2}\n', encoding="utf-8")

@@ -6,13 +6,22 @@ from pathlib import Path
 import pytest
 
 from casetrace.browser import BrowserSurface
-from casetrace.contracts import Capability, FailureCode, TenantBindings
+from casetrace.contracts import (
+    AccessibleRoleStrategy,
+    AdjacentControlStrategy,
+    Capability,
+    FailureCode,
+    TargetSpec,
+    TenantBindings,
+)
 from casetrace.evidence import EvidenceWriter
+from casetrace.recording_compiler import compile_recording
 from casetrace.replay import replay
 from casetrace.session import SessionController
 from tests.harness import FixtureServer
 from tests.integration.test_browser import _policy
 from tests.unit.test_contracts import _artifact
+from tests.unit.test_recording_compiler import _complete_recording
 
 
 def authored_traversal(*, break_return=False, max_pages=3, omit_pending=False):
@@ -253,6 +262,85 @@ async def run_authored(tmp_path, query, capability, scenario="normal"):
             return result
         finally:
             await surface.close()
+
+
+def _bindings() -> TenantBindings:
+    return TenantBindings(
+        tenant_id="northstar-synthetic",
+        vendor="Northstar Synthetic Bank",
+        origin="http://127.0.0.1:8000",
+        app_version="2026.09",
+        timezone="America/Chicago",
+    )
+
+
+def _complete_browser_recording():
+    recording = _complete_recording()
+    frame = ["Bank workspace"]
+
+    def target(event_id, strategy, container=None):
+        operation = next(item for item in recording.operations if item.event_id == event_id)
+        operation.target = TargetSpec(
+            target_id=operation.target.target_id,
+            surface_kind="web",
+            frame_path=frame,
+            container=container,
+            strategies=[strategy],
+        )
+
+    target("event-2", AccessibleRoleStrategy(role="textbox", name="Member ID"))
+    target("event-3", AccessibleRoleStrategy(role="button", name="Search"))
+    target("event-4", AccessibleRoleStrategy(role="link", name="Open"))
+    target("event-5", AdjacentControlStrategy(label="Amount", control_role="textbox"))
+    target("event-6", AdjacentControlStrategy(label="Start date", control_role="textbox"))
+    target("event-7", AdjacentControlStrategy(label="End date", control_role="textbox"))
+    target("event-8", AccessibleRoleStrategy(role="combobox", name="Currency"))
+    target("event-9", AccessibleRoleStrategy(role="combobox", name="Direction"))
+    target("event-10", AccessibleRoleStrategy(role="button", name="Apply filters"))
+    activity = AccessibleRoleStrategy(role="table", name="History activity")
+    target("event-11", activity)
+    target("event-13", activity)
+    target("event-12", AccessibleRoleStrategy(role="link", name="Next"))
+    target("event-14", AccessibleRoleStrategy(role="link", name="View"))
+    detail = AccessibleRoleStrategy(role="table", name="Transaction details")
+    target("event-15", detail)
+    target("event-16", detail)
+    return recording
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("member_id", "amount", "kind", "value"),
+    [
+        ("12345", "250.00", "success", "POSTED"),
+        ("12345", "125.00", "success", "PENDING"),
+        ("12345", "80.00", "success", "REVERSED"),
+        ("12345", "999.00", "business_outcome", "NOT_FOUND"),
+        ("12345", "60.00", "business_outcome", "AMBIGUOUS"),
+        ("99999", "250.00", "business_outcome", "MEMBER_NOT_FOUND"),
+        ("11111", "250.00", "business_outcome", "NO_ACCOUNTS"),
+    ],
+)
+async def test_compiled_recording_replays_all_required_outcomes(
+    tmp_path, make_query, member_id, amount, kind, value
+):
+    capability = compile_recording(_complete_browser_recording(), _bindings())
+
+    result = await run_authored(
+        tmp_path,
+        make_query(member_id=member_id, amount=amount),
+        capability,
+    )
+
+    assert result.kind == kind, (
+        result.current_step,
+        result.expected_condition,
+        result.observed_condition,
+    )
+    if kind == "success":
+        assert result.payment.status == value
+    else:
+        assert result.code == value
 
 
 @pytest.mark.asyncio

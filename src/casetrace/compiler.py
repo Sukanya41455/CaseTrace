@@ -67,7 +67,7 @@ def compile_candidate(
 def _reject_frozen_inputs(capability: Capability, sensitive_values: tuple[str, ...]) -> None:
     serialized = capability.model_dump_json()
     for value in sensitive_values:
-        if value and json.dumps(value) in serialized:
+        if value and value != capability.scope.currency and json.dumps(value) in serialized:
             raise CompilationError("candidate freezes a runtime input value")
 
 
@@ -85,6 +85,8 @@ def _validate_provenance(capability: Capability, recording: DiscoveryRecording) 
         if not step.provenance.event_ids:
             if step.provenance.kind == "observed":
                 raise CompilationError("observed step is missing event provenance")
+            continue
+        if step.provenance.kind != "observed":
             continue
         for event_id in step.provenance.event_ids:
             recorded = recorded_by_id.get(event_id)

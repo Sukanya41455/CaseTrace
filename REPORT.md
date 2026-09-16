@@ -1435,29 +1435,29 @@ A genuine model-guided discovery run successfully:
 
 This demonstrates that the discovery system can navigate the workflow.
 
-However, the run did **not** successfully complete candidate capability generation.
+Those historical runs did **not** produce a usable capability. They remain diagnostic records, not
+submission evidence.
 
 ---
 
-# 38. Current Discovery Gap
+# 38. Current Discovery Boundary
 
-After successful browser discovery:
+After the model reaches the verified transaction-detail finish gate:
 
-1. The provider made the final candidate-generation request.
-2. The provider returned invalid tool output.
-3. A later attempt encountered a provider rate limit.
-4. No valid candidate capability was emitted from that run.
+1. The model does not generate a capability candidate.
+2. Trusted code qualifies the typed recording and deterministically compiles the capability.
+3. Compiler-added branches remain generalized and validation-bound.
+4. A fresh discovery, validation, replay, and same-session handoff are still required for
+   submission evidence.
 
 Therefore:
 
 ```text
 Model-guided discovery recording
             ↓
-       successfully produced
-
-Candidate capability
+Deterministic recording compiler
             ↓
-       not produced
+Unvalidated capability
 ```
 
 The capability used by the dependable replay demo is therefore **not the artifact emitted from that discovery run**.
@@ -1522,11 +1522,11 @@ That is the next milestone.
 
 ## Priority 1 — Complete One True Discovery → Replay Chain
 
-Run a provider-backed discovery that successfully emits a valid candidate capability.
+Run a provider-backed discovery that successfully compiles a valid capability from its recording.
 
 Then:
 
-1. Preserve that exact candidate.
+1. Preserve that exact compiled capability.
 2. Validate it.
 3. Replay that same artifact.
 4. Use invocation values different from discovery.

@@ -29,6 +29,12 @@ What to point out during the demo:
 
 The optional live-discovery segment uses Ollama or Gemini and is slower and provider-dependent. It is not required for the reliable replay demo.
 
+On a completed discovery, the model performs UI exploration only. CaseTrace then deterministically
+compiles the qualified recording into an unvalidated capability; it does not make a final
+model candidate-generation request. Generalized branches remain validation-bound, and replay
+continues to make zero model calls. Failed historical runs are diagnostic evidence only, never
+submission evidence.
+
 ## Python environment
 
 All application and development dependencies belong to the project-local `.venv`. Python 3.12 or newer and [uv](https://docs.astral.sh/uv/getting-started/installation/) are required. The dependency versions are recorded in `uv.lock`.

@@ -7,7 +7,7 @@ import json
 import re
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlsplit, urlunsplit
 
 from .contracts import BusinessOutcome, Failure, RunEvent, RunResult, Success
@@ -50,6 +50,12 @@ _SECRET_ASSIGNMENT = re.compile(
 _URL = re.compile(r"https?://[^\s<>\"]+")
 _TRACEBACK = re.compile(r"(?is)\btraceback\b.*$")
 _PROVIDER_BODY = re.compile(r"(?is)\b(provider(?: response| error)? body)\s*[:=].*$")
+
+
+def _has_genuine_discovery_event(events: list[dict[str, object]]) -> bool:
+    return any(
+        bool(event.get("model_id")) and event.get("model_call_count", 0) > 0 for event in events
+    )
 
 
 def check_evidence(root: Path) -> list[str]:
@@ -111,10 +117,7 @@ def check_evidence(root: Path) -> list[str]:
                 problems.append(f"artifact digest mismatch: {name}")
             if run.get("binding_digest") != manifest.get("binding_digest"):
                 problems.append(f"binding digest mismatch: {name}")
-        if not any(
-            e.get("provider_response_id") and e.get("model_id") and e.get("model_call_count", 0) > 0
-            for e in discovered_events
-        ):
+        if not _has_genuine_discovery_event(discovered_events):
             problems.append("missing genuine discovery evidence")
         owners = [e.get("current_owner") for e in handoff_events if e.get("kind") == "ownership"]
         manual = any(
@@ -223,32 +226,45 @@ class EvidenceWriter:
             result["screenshot_path"] = str(screenshot_path)
         return result
 
-    def finish(self, result: RunResult) -> None:
+    def seal(
+        self,
+        artifact_digest: str | None,
+        binding_digest: str | None,
+        *,
+        mode: Literal["discovery", "replay"],
+    ) -> None:
+        files = [
+            {
+                "path": path.name,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+            for path in sorted(self.run_dir.iterdir())
+            if path != self.manifest_path and path.is_file()
+        ]
+        self.manifest_path.write_text(
+            json.dumps(
+                {
+                    "run_id": self.run_id,
+                    "mode": mode,
+                    "artifact_digest": artifact_digest,
+                    "binding_digest": binding_digest,
+                    "files": files,
+                },
+                sort_keys=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    def finish(self, result: RunResult, *, mode: Literal["discovery", "replay"] = "replay") -> None:
         if result.run_id != self.run_id:
             raise ValueError("result run does not match evidence run")
         projection = self._result_projection(result)
         self.result_path.write_text(
             json.dumps(projection, sort_keys=True, indent=2) + "\n", encoding="utf-8"
         )
-        files = []
-        for path in sorted(self.run_dir.iterdir()):
-            if path == self.manifest_path or not path.is_file():
-                continue
-            files.append(
-                {
-                    "path": path.name,
-                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-                }
-            )
-        manifest = {
-            "run_id": self.run_id,
-            "artifact_digest": result.artifact_digest,
-            "binding_digest": result.binding_digest,
-            "files": files,
-        }
-        self.manifest_path.write_text(
-            json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8"
-        )
+        self.seal(result.artifact_digest, result.binding_digest, mode=mode)
 
     def _result_projection(self, result: RunResult) -> dict[str, Any]:
         common: dict[str, Any] = {
