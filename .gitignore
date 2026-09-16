@@ -20,3 +20,4 @@ runs/
 AComputer-Use Automation System.docx
 docs/
 .tmp-docx-review/
+artifacts/*

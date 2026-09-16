@@ -70,7 +70,7 @@ ollama run qwen3.5:4b "Reply with exactly: READY"
 ## Notes
 
 - Replay uses the project `.env` and does not call a provider.
-- The fast offline demo uses an authored, validated fixture so it remains repeatable.
+- The fast offline demo replays the genuinely discovered and validated capability from `evidence/validation/capability.json` without calling a model.
 - The submission evidence uses a genuine model-guided discovery, its compiled and validated
   capability, and zero-model replay. That discovery is required to reproduce or claim the
   completed evidence chain.

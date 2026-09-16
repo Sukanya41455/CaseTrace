@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $projectRoot ".venv\Scripts\python.exe"
-$artifact = Join-Path $projectRoot "artifacts\casetrace-demo-validated\capability.json"
+$artifact = Join-Path $projectRoot "evidence\validation\capability.json"
 $query = Join-Path $projectRoot "examples\queries\posted-new-member.json"
 $bindings = Join-Path $projectRoot "config\base.json"
 $target = "http://127.0.0.1:8000"
