@@ -70,5 +70,21 @@ ollama run qwen3.5:4b "Reply with exactly: READY"
 ## Notes
 
 - Replay uses the project `.env` and does not call a provider.
-- The reliable demo path is the authored, validated replay flow.
-- Live discovery is optional and slower than replay.
+- The fast offline demo uses an authored, validated fixture so it remains repeatable.
+- The submission evidence uses a genuine model-guided discovery, its compiled and validated
+  capability, and zero-model replay. That discovery is required to reproduce or claim the
+  completed evidence chain.
+- Reviewers can inspect and replay an existing validated evidence bundle without rerunning the
+  slower provider-guided discovery.
+
+## Replay input provenance
+
+The different-input proof uses two explicit query files:
+
+- The discovery run uses `examples\queries\posted.json` (`member_id` `12345`, amount `250.00`).
+- The posted replay uses `examples\queries\posted-new-member.json` (`member_id` `54321`, amount `175.50`).
+
+Keep the second file on the `replay-posted` command. Reusing `posted.json`
+would make the `different_replay_inputs: true` claim in
+`runs\manifest.json` unsupported by the saved instructions. The handoff replay
+is a separate scenario and may continue to use the original posted query.
