@@ -136,5 +136,5 @@ def test_discovery_payload_reports_compiled_capability() -> None:
     assert payload["kind"] == "capability"
     assert payload["validation"] == "required"
     assert payload["model_calls"] == 16
-    assert payload["compiler"] == "deterministic-recording-v1"
+    assert payload["compiler"] == "trusted-recording-compiler-v1"
     assert isinstance(payload["artifact_digest"], str)

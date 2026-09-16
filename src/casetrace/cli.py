@@ -90,7 +90,7 @@ def _discovery_payload(capability: Capability, calls: int) -> dict[str, object]:
         "validation": "required",
         "model_calls": calls,
         "artifact_digest": capability_digest(capability),
-        "compiler": "deterministic-recording-v1",
+        "compiler": "trusted-recording-compiler-v1",
     }
 
 
