@@ -1,12 +1,13 @@
 # CaseTrace
 
-CaseTrace runs a browser-based banking workflow, records a typed capability, and replays it without calling a model.
+CaseTrace is a computer-use prototype for the included Northstar Synthetic Bank. Its example scenario finds a member's incoming payment by opening account activity, filtering transactions, and confirming the matching transaction detail. It records that flow as a typed capability and replays it deterministically with different inputs.
 
 ## Quick start
 
 Requirements:
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- [Ollama](https://ollama.com/) for live discovery
 
 Setup:
 
@@ -44,7 +45,7 @@ The replay must finish with `kind: "success"`, payment status `"POSTED"`, and ze
 
 ### Full reproduction
 
-This path requires access to a configured model provider because it creates a new capability through live discovery. Copy `.env.example` to `.env`, configure one of its documented providers, and confirm it is reachable:
+This path requires Ollama because it creates a new capability through live discovery. Copy `.env.example` to `.env`, set `CASETRACE_OLLAMA_MODEL` if you use a model other than the default, and confirm it is reachable:
 
 ```powershell
 Copy-Item .env.example .env
@@ -97,9 +98,10 @@ The discovery output contains the generated `capability.json`; validation writes
 
 ## Discovery configuration
 
-`.env.example` documents the supported provider settings:
-- `GEMINI_API_KEY` + `CASETRACE_MODEL` for Gemini
-- `CASETRACE_OLLAMA_MODEL` for local Ollama
+`.env.example` documents the local Ollama settings:
+- `CASETRACE_OLLAMA_URL`
+- `CASETRACE_OLLAMA_MODEL`
+- `CASETRACE_OLLAMA_CONTEXT`
 - `CASETRACE_DISCOVERY_TIMEOUT_SECONDS` for the discovery time limit
 
 Before discovery, verify the local model:
