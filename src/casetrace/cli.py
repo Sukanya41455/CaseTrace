@@ -151,6 +151,8 @@ async def _runtime(policy, bindings, evidence, *, headed=False, operator_port=No
     async def transition(state):
         nonlocal previous_owner
         await surface.set_human_control(state is SessionState.HUMAN)
+        if state in {SessionState.PAUSING, SessionState.HUMAN}:
+            await surface.focus_controlled_page()
         owner = (
             "human_operator"
             if state is SessionState.HUMAN

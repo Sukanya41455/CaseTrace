@@ -62,7 +62,8 @@ $replayOutput = Join-Path $runRoot 'replay-posted'
   --bindings config/base.json `
   --params examples/queries/posted.json `
   --output $discoveryOutput `
-  --goal "Find the incoming payment described by the typed invocation, confirm its identity on the transaction detail screen, and propose the reusable bounded capability."
+  --goal "Find the incoming payment described by the typed invocation, confirm its identity on the transaction detail screen, and propose the reusable bounded capability." `
+  --headed
 
 .\.venv\Scripts\python.exe -m casetrace.cli validate-artifact "$discoveryOutput\capability.json" `
   --target http://127.0.0.1:8000 `
@@ -90,26 +91,31 @@ The submitted evidence also includes a human handoff and a hard checkpoint failu
 Then run this headed replay in terminal B:
 
 ```powershell
+$handoffOutput = Join-Path $runRoot 'replay-handoff'
+
 .\.venv\Scripts\python.exe -m casetrace.cli replay evidence/validation/capability.json `
   --target http://127.0.0.1:8000 `
   --bindings config/base.json `
   --params examples/queries/posted-new-member.json `
-  --output runs/review-handoff `
+  --output $handoffOutput `
   --headed `
   --operator-port 8001
 ```
 
-When the terminal prints `waiting_human`, open `http://127.0.0.1:8001`, take control, sign in to the already-open fixture browser with its visible fixture credentials, then resume. The same session must finish with `POSTED`; see `evidence/replay-handoff/`.
+When the terminal prints `waiting_human`, open `http://127.0.0.1:8001`, take control, and complete the recovery in the controlled replay page. Taking control automatically focuses that page; sign in with its visible fixture credentials if prompted, then return to the operator page and resume. The same session must finish with `POSTED`; see `evidence/replay-handoff/`.
 
 For the checkpoint-failure proof, stop the expiry fixture, start `--scenario stale-member`, then replay `examples/queries/posted.json`:
 
+
 ```powershell
+$checkpointOutput = Join-Path $runRoot 'replay-checkpoint-failure'
+
 .\.venv\Scripts\python.exe -m casetrace.cli fixture --scenario stale-member --port 8000
 .\.venv\Scripts\python.exe -m casetrace.cli replay evidence/validation/capability.json `
   --target http://127.0.0.1:8000 `
   --bindings config/base.json `
   --params examples/queries/posted.json `
-  --output runs/review-checkpoint-failure
+  --output $checkpointOutput
 ```
 
 This replay intentionally exits with `CHECKPOINT_FAILED`; see `evidence/replay-checkpoint-failure/`.
@@ -181,7 +187,8 @@ replay_output="$run_root/replay-posted"
   --bindings config/base.json \
   --params examples/queries/posted.json \
   --output "$discovery_output" \
-  --goal "Find the incoming payment described by the typed invocation, confirm its identity on the transaction detail screen, and propose the reusable bounded capability."
+  --goal "Find the incoming payment described by the typed invocation, confirm its identity on the transaction detail screen, and propose the reusable bounded capability." \
+  --headed
 
 .venv/bin/python -m casetrace.cli validate-artifact "$discovery_output/capability.json" \
   --target http://127.0.0.1:8000 \
@@ -213,26 +220,31 @@ To reproduce the handoff, start this fixture in terminal A:
 Then run this headed replay in terminal B:
 
 ```bash
+run_root="runs/review-$(date +%Y%m%d-%H%M%S)"
+handoff_output="$run_root/replay-handoff"
+
 .venv/bin/python -m casetrace.cli replay evidence/validation/capability.json \
   --target http://127.0.0.1:8000 \
   --bindings config/base.json \
   --params examples/queries/posted-new-member.json \
-  --output runs/review-handoff \
+  --output "$handoff_output" \
   --headed \
   --operator-port 8001
 ```
 
-When the terminal prints `waiting_human`, open `http://127.0.0.1:8001`, take control, sign in to the already-open fixture browser with its visible fixture credentials, then resume. The same session must finish with `POSTED`; see `evidence/replay-handoff/`.
+When the terminal prints `waiting_human`, open `http://127.0.0.1:8001`, take control, and complete the recovery in the controlled replay page. Taking control automatically focuses that page; sign in with its visible fixture credentials if prompted, then return to the operator page and resume. The same session must finish with `POSTED`; see `evidence/replay-handoff/`.
 
 For the checkpoint-failure proof, stop the expiry fixture, start `--scenario stale-member`, then replay `examples/queries/posted.json`:
 
 ```bash
+checkpoint_output="$run_root/replay-checkpoint-failure"
+
 .venv/bin/python -m casetrace.cli fixture --scenario stale-member --port 8000
 .venv/bin/python -m casetrace.cli replay evidence/validation/capability.json \
   --target http://127.0.0.1:8000 \
   --bindings config/base.json \
   --params examples/queries/posted.json \
-  --output runs/review-checkpoint-failure
+  --output "$checkpoint_output"
 ```
 
 This replay intentionally exits with `CHECKPOINT_FAILED`; see `evidence/replay-checkpoint-failure/`.

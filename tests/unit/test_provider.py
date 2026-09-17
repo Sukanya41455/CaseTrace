@@ -1087,6 +1087,7 @@ async def test_ollama_rejects_tool_call_that_was_not_declared() -> None:
 
 @pytest.mark.asyncio
 async def test_ollama_retries_invalid_tool_arguments_once() -> None:
+    request_bodies = []
     responses = [
         {
             "model": "qwen3.5:9b",
@@ -1120,6 +1121,7 @@ async def test_ollama_retries_invalid_tool_arguments_once() -> None:
     ]
 
     async def respond(request: httpx.Request) -> httpx.Response:
+        request_bodies.append(json.loads(request.content))
         return httpx.Response(200, json=responses.pop(0))
 
     observation = Observation(
@@ -1149,6 +1151,9 @@ async def test_ollama_retries_invalid_tool_arguments_once() -> None:
 
     assert decision.proposal.target_handle == "next"
     assert provider.calls == 2
+    retry_message = request_bodies[1]["messages"][-1]["content"]
+    assert "target_handle" in retry_message
+    assert '"next"' in retry_message
 
 
 def test_gemini_rejects_handle_outside_declared_enum() -> None:

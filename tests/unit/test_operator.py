@@ -49,6 +49,7 @@ async def test_operator_page_shows_sanitized_run_state_and_current_controls():
     assert "authentication required" in response.text
     assert intervention.intervention_id in response.text
     assert "csrf_token" in response.text
+    assert "setTimeout" not in response.text
 
 
 @pytest.mark.asyncio

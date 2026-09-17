@@ -480,6 +480,26 @@ async def test_human_gate_survives_frame_navigation_and_closes_for_keyboard_inpu
 
 
 @pytest.mark.asyncio
+async def test_human_gate_does_not_block_operator_page_controls():
+    with FixtureServer() as fixture:
+        surface = await BrowserSurface.launch(_policy(fixture.url), [], headless=True)
+        try:
+            await surface.act(_navigate(), _query(), {"entry_url": fixture.url})
+            operator_page = await surface._context.new_page()
+            await operator_page.goto(fixture.url)
+            await operator_page.evaluate(
+                """() => document.body.insertAdjacentHTML(
+                    'beforeend',
+                    '<button onclick="window.operatorClicked = true">Take control</button>',
+                )"""
+            )
+            await operator_page.get_by_role("button", name="Take control").click()
+            assert await operator_page.evaluate("() => window.operatorClicked") is True
+        finally:
+            await surface.close()
+
+
+@pytest.mark.asyncio
 async def test_resume_checks_original_live_ids_supported_identity_and_known_search():
     with FixtureServer() as fixture:
         surface = await BrowserSurface.launch(_policy(fixture.url), _targets(), headless=True)

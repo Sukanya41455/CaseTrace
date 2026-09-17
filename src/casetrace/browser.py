@@ -272,8 +272,8 @@ class BrowserSurface:
 
             await context.expose_binding("__casetraceRecord", record)
             await context.expose_binding("__casetraceOwnership", ownership)
-            await context.add_init_script(_RECORDING_JS)
             page = await context.new_page()
+            await page.add_init_script(_RECORDING_JS)
             surface = cls(
                 playwright,
                 browser,
@@ -345,6 +345,12 @@ class BrowserSurface:
         self._operator_page = await self._context.new_page()
         await self._operator_page.goto(url, wait_until="load")
         await self._operator_page.bring_to_front()
+
+    async def focus_controlled_page(self) -> None:
+        """Bring the replay page forward when human ownership begins."""
+        if self._page.is_closed():
+            raise RuntimeError("controlled replay page is closed")
+        await self._page.bring_to_front()
 
     async def close(self) -> None:
         try:

@@ -98,7 +98,7 @@ def create_operator_app(
 
         refresh = (
             "<script>setTimeout(() => location.reload(), 1000);</script>"
-            if session.state in {SessionState.AUTOMATION, SessionState.PAUSING}
+            if session.state is SessionState.AUTOMATION
             else ""
         )
         body = (
@@ -111,6 +111,17 @@ def create_operator_app(
             f"<dt>Ownership</dt><dd>{escape(session.state.value)}</dd>"
             f"<dt>Run</dt><dd>{escape(session.run_id)}</dd>"
             f"<dt>Session</dt><dd>{escape(session.browser_id)}</dd></dl>"
+            + (
+                "<p>The replay is waiting for human recovery. Click Take control, "
+                "complete the recovery in the controlled replay page, then return here and resume.</p>"
+                if session.state is SessionState.PAUSING
+                else (
+                    "<p>Take control has focused the controlled replay page. "
+                    "Complete the requested recovery there, then return here and resume.</p>"
+                    if session.state is SessionState.HUMAN
+                    else ""
+                )
+            )
             + form("take-control", "Take control", take_disabled)
             + form("resume", "Resume", resume_disabled)
             + form("abort", "Abort", abort_disabled)

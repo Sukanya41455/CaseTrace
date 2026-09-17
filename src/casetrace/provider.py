@@ -1096,7 +1096,9 @@ class OllamaProvider:
                                 "Your previous tool call was rejected. Retry using exactly one "
                                 "currently declared tool and exactly its required argument keys. "
                                 "Use only enum values and opaque handles from the latest "
-                                "observation; do not reuse an older handle."
+                                "observation; do not reuse an older handle. The current "
+                                "declarations, including the complete allowed enum values, are: "
+                                f"{json.dumps(_ollama_tools(tools), sort_keys=True)}"
                             ),
                         }
                     )
