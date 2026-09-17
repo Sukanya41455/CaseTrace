@@ -79,6 +79,7 @@ $replayOutput = Join-Path $runRoot 'replay-posted'
   --target http://127.0.0.1:8000 `
   --bindings config/base.json `
   --params examples/queries/posted-new-member.json `
+  --headed `
   --output $replayOutput
 ```
 
@@ -204,6 +205,7 @@ replay_output="$run_root/replay-posted"
   --target http://127.0.0.1:8000 \
   --bindings config/base.json \
   --params examples/queries/posted-new-member.json \
+  --headed \
   --output "$replay_output"
 ```
 
