@@ -6,7 +6,7 @@ CaseTrace is a computer-use prototype for the included Northstar Synthetic Bank.
 
 **Note**: CaseTrace has been tested end-to-end for windows. Linux/MacOS demo scripts and commands has been added for compatibility and has not been tested because of unavailability to linux/mac os.
 
-Demo link: [Watch the demo on YouTube](https://www.youtube.com/watch?v=T0zI7j0FQ-k)
+Demo link: [Watch the demo on YouTube](https://youtu.be/XOfnZPyOLk8)
 
 ## Windows PowerShell
 
