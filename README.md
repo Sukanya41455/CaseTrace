@@ -222,7 +222,6 @@ To reproduce the handoff, start this fixture in terminal A:
 Then run this headed replay in terminal B:
 
 ```bash
-run_root="runs/review-$(date +%Y%m%d-%H%M%S)"
 handoff_output="$run_root/replay-handoff"
 
 .venv/bin/python -m casetrace.cli replay evidence/validation/capability.json \
