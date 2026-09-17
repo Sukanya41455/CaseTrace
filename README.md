@@ -1,5 +1,7 @@
 # CaseTrace
 
+![](casetrace_banner.png?raw=true)
+
 CaseTrace is a computer-use prototype for the included Northstar Synthetic Bank. Its example scenario finds a member's incoming payment by opening account activity, filtering transactions, and confirming the matching transaction detail. It records that flow as a typed capability and replays it deterministically with different inputs.
 
 **Note**: CaseTrace has been tested end-to-end for windows. Linux/MacOS demo scripts and commands has been added for compatibility and has not been tested because of unavailability to linux/mac os.
